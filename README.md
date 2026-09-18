@@ -1,24 +1,51 @@
-# First Commit
+# ConnectCampus
 
-Bharat Builds Tour - First Commit Hackathon Project
+Student Identity Verification & Team Finder Platform for Hackathons and Events.
 
-## Problem Statement
+## Problem
 
-<!-- Describe the problem you're solving -->
+Students struggle to find like-minded teammates for hackathons, especially when attending events or summits in different locations.
 
 ## Solution
 
-<!-- Describe your solution -->
+A platform where students can:
+- Verify their identity through their college/institution
+- Create profiles with skills and interests
+- Find teammates for hackathons and events
+- Connect with like-minded people at events using location
 
 ## Tech Stack
 
-- **Platform:** AWS
-- **Track:** Build It / Ship It
+- **Frontend:** React.js, Tailwind CSS
+- **Backend:** Node.js, Express.js
+- **Database:** MongoDB
+- **Auth:** AWS Cognito (Student Email Verification)
+- **Location:** Google Maps API / Geolocation
+- **Deployment:** AWS (EC2, S3, Lambda)
 
-## Getting Started
+## Track
 
-<!-- Instructions to run the project -->
+Ship It - Deployed on AWS
 
 ## Team
 
 - Vipul-Ydv
+
+## Getting Started
+
+```bash
+# Clone
+git clone https://github.com/Vipul-Ydv/first-commit.git
+
+# Install dependencies
+cd server && npm install
+cd ../client && npm install
+
+# Run
+cd server && npm run dev
+cd client && npm start
+```
+
+## License
+
+MIT
