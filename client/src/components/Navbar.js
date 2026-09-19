@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
   HiMenu, HiX, HiUser, HiLogout, 
-  HiLocationMarker, HiCalendar, HiUsers 
+   HiPlus, HiUsers 
 } from 'react-icons/hi';
 
 function Navbar() {
@@ -44,19 +44,13 @@ function Navbar() {
                   to="/teams" 
                   className="text-gray-600 hover:text-primary-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
                 >
-                  <HiUsers className="inline mr-1" /> Teams
+                  <HiUsers className="inline mr-1" /> Find a Team
                 </Link>
                 <Link 
-                  to="/events" 
+                  to="/teams/new" 
                   className="text-gray-600 hover:text-primary-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
                 >
-                  <HiCalendar className="inline mr-1" /> Events
-                </Link>
-                <Link 
-                  to="/map" 
-                  className="text-gray-600 hover:text-primary-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
-                >
-                  <HiLocationMarker className="inline mr-1" /> Map
+                  <HiPlus className="inline mr-1" /> Create a Team
                 </Link>
                 <div className="flex items-center gap-3 ml-4 pl-4 border-l border-gray-200">
                   <Link to="/profile" className="flex items-center gap-2">
@@ -120,21 +114,14 @@ function Navbar() {
                   className="block px-4 py-2 rounded-lg hover:bg-gray-50"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Teams
+                  Find a Team
                 </Link>
                 <Link 
-                  to="/events" 
+                  to="/teams/new" 
                   className="block px-4 py-2 rounded-lg hover:bg-gray-50"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Events
-                </Link>
-                <Link 
-                  to="/map" 
-                  className="block px-4 py-2 rounded-lg hover:bg-gray-50"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Map
+                  Create a Team
                 </Link>
                 <Link 
                   to="/profile" 

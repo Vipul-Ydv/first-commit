@@ -5,7 +5,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { 
   HiUsers, HiArrowLeft, HiCheck, HiX, 
-  HiLightningBolt, HiUserPlus 
+  HiLightningBolt, HiUserAdd as HiUserPlus 
 } from 'react-icons/hi';
 
 function TeamDetail() {

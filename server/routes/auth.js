@@ -1,186 +1,88 @@
+/**
+ * Local email + password auth.
+ *
+ * This is the stand-in for Cognito, which the AWS account cannot currently
+ * provision. It is real auth - bcrypt-hashed passwords, signed JWTs - not a
+ * demo shortcut, so the app is honest about who is calling it.
+ *
+ * When Cognito becomes available, these two endpoints go away and
+ * middleware/auth.js verifies the pool's JWT instead. Nothing else changes:
+ * both paths end at req.auth = { userId }.
+ */
+
 const express = require('express');
-const router = express.Router();
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
-const User = require('../models/User');
-const { auth } = require('../middleware/auth');
+const { randomUUID } = require('crypto');
+const { fail, route } = require('../lib/errors');
+const { issueToken, requireAuth } = require('../middleware/auth');
+const { publicUser } = require('../lib/hydrate');
 
-// Register with college email
-router.post('/register', async (req, res) => {
-  try {
-    const { email, password, name, college } = req.body;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    // Check if college email
-    const collegeDomains = ['.edu', '.ac.in', '.edu.in'];
-    const isCollegeEmail = collegeDomains.some(domain => 
-      email.toLowerCase().endsWith(domain)
-    );
+module.exports = function authRoutes({ store }) {
+  const router = express.Router();
 
-    if (!isCollegeEmail) {
-      return res.status(400).json({ 
-        error: 'Please use your college email address' 
-      });
-    }
+  router.post('/register', route(async (req, res) => {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const password = String(req.body?.password || '');
+    const name = String(req.body?.name || '').trim();
 
-    // Check existing user
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
-    }
+    if (!EMAIL.test(email)) fail('VALIDATION_FAILED', 'Enter a valid email address.');
+    if (password.length < 8) fail('VALIDATION_FAILED', 'Password must be at least 8 characters.');
+    if (!name) fail('VALIDATION_FAILED', 'Name is required.');
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const existing = await store.users.findOne((u) => u.email === email);
+    if (existing) fail('VALIDATION_FAILED', 'That email is already registered.');
 
-    // Create verification token
-    const verificationToken = uuidv4();
-
-    // Create user
-    const user = new User({
-      email,
-      password: hashedPassword,
+    const user = {
+      userId: `user_${randomUUID().slice(0, 8)}`,
       name,
-      college,
-      verificationToken
-    });
+      email,
+      passwordHash: await bcrypt.hash(password, 10),
+      // No email service in scope, so accounts start usable. Cognito's
+      // verification link replaces this when it lands.
+      emailVerified: true,
+      userType: req.body?.userType === 'professional' ? 'professional' : 'student',
+      collegeName: null,
+      organizationName: null,
+      skills: [],
+      interests: [],
+      competitionPreferences: [],
+      rolePreference: [],
+      availability: null,
+      github: null,
+      linkedin: null,
+      projects: [],
+      experience: [],
+      gender: null,
+      createdAt: new Date().toISOString(),
+    };
 
-    await user.save();
+    await store.users.put(user);
+    res.status(201).json({ token: issueToken(user.userId), user: publicUser(user) });
+  }));
 
-    // Generate token
-    const token = jwt.sign(
-      { userId: user._id }, 
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+  router.post('/login', route(async (req, res) => {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const password = String(req.body?.password || '');
 
-    res.status(201).json({
-      message: 'Registration successful. Please verify your email.',
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        college: user.college,
-        isVerified: user.isVerified
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+    const user = await store.users.findOne((u) => u.email === email);
+    // Same message either way - never reveal whether an email is registered.
+    if (!user || !user.passwordHash) fail('VALIDATION_FAILED', 'Invalid email or password.');
 
-// Login
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) fail('VALIDATION_FAILED', 'Invalid email or password.');
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ error: 'Invalid credentials' });
-    }
+    res.json({ token: issueToken(user.userId), user: publicUser(user) });
+  }));
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ error: 'Invalid credentials' });
-    }
+  /** Who am I? Used on page load to restore a session. */
+  router.get('/me', requireAuth, route(async (req, res) => {
+    const user = await store.users.get(req.auth.userId);
+    if (!user) fail('NOT_FOUND');
+    const { passwordHash, ...safe } = user;
+    res.json(safe);
+  }));
 
-    const token = jwt.sign(
-      { userId: user._id }, 
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        college: user.college,
-        isVerified: user.isVerified
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Get current user profile
-router.get('/me', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id)
-      .select('-password -verificationToken');
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Update profile
-router.put('/profile', auth, async (req, res) => {
-  try {
-    const updates = req.body;
-    const allowedUpdates = [
-      'name', 'bio', 'skills', 'interests', 
-      'lookingFor', 'avatar', 'department', 'year'
-    ];
-    
-    const updatesFiltered = Object.keys(updates)
-      .filter(key => allowedUpdates.includes(key))
-      .reduce((obj, key) => {
-        obj[key] = updates[key];
-        return obj;
-      }, {});
-
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { $set: updatesFiltered },
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Update location
-router.put('/location', auth, async (req, res) => {
-  try {
-    const { longitude, latitude } = req.body;
-
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      {
-        location: {
-          type: 'Point',
-          coordinates: [longitude, latitude]
-        }
-      },
-      { new: true }
-    ).select('-password');
-
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Add hackathon history
-router.post('/hackathon-history', auth, async (req, res) => {
-  try {
-    const { name, date, role, achievement, projectLink } = req.body;
-
-    const user = await User.findById(req.user._id);
-    user.hackathonHistory.push({
-      name, date, role, achievement, projectLink
-    });
-    await user.save();
-
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-module.exports = router;
+  return router;
+};
