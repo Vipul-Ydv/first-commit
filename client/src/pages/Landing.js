@@ -1,214 +1,279 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  HiUsers, HiLocationMarker, HiShieldCheck, 
-  HiLightningBolt, HiStar, HiCalendar 
-} from 'react-icons/hi';
+import { useAuth } from '../context/AuthContext';
+import { HiLightningBolt, HiUsers, HiUserGroup } from 'react-icons/hi';
 
-function Landing() {
-  const features = [
-    {
-      icon: <HiShieldCheck className="h-8 w-8" />,
-      title: 'Verified Identity',
-      description: 'Verify with your college email and get a trusted badge'
-    },
-    {
-      icon: <HiLightningBolt className="h-8 w-8" />,
-      title: 'AI Skill Matching',
-      description: 'Smart algorithm finds complementary teammates'
-    },
-    {
-      icon: <HiUsers className="h-8 w-8" />,
-      title: 'Team Finder',
-      description: 'Create or join teams for hackathons and events'
-    },
-    {
-      icon: <HiLocationMarker className="h-8 w-8" />,
-      title: 'Location Discovery',
-      description: 'Find like-minded people at events and summits'
-    },
-    {
-      icon: <HiCalendar className="h-8 w-8" />,
-      title: 'Event Check-in',
-      description: 'QR code check-in to connect with attendees'
-    },
-    {
-      icon: <HiStar className="h-8 w-8" />,
-      title: 'Hackathon History',
-      description: 'Showcase your past achievements and wins'
-    }
-  ];
+/* ─────────────────────────────────────────────
+   Auth-aware CTA block
+───────────────────────────────────────────── */
 
+function CtaBlock({ user, profileComplete }) {
+  if (!user) {
+    return (
+      <div className="flex flex-wrap gap-3">
+        <Link to="/register" className="btn-primary">Get Started</Link>
+        <Link to="/login" className="btn-secondary">Sign in</Link>
+      </div>
+    );
+  }
+  if (!profileComplete) {
+    return (
+      <div className="flex flex-wrap gap-3">
+        <Link to="/profile" className="btn-primary">Complete your profile</Link>
+      </div>
+    );
+  }
   return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 text-white">
-        {/* Decorative grid, drawn in CSS. The previous version pointed at an
-            SVG asset that was never added to the repo, which broke the build.
-            Do not name that file here - Tailwind scans comments too and will
-            regenerate the broken rule from it. */}
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage:
-              'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-          }}
-        ></div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 relative">
-          <div className="text-center max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-              <span className="text-sm">Live Now - Bharat Builds Tour</span>
-            </div>
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              Find Your Perfect
-              <span className="text-aws-orange"> Hackathon Team</span>
-            </h1>
-            <p className="text-xl text-primary-100 mb-8">
-              Verify your student identity, get matched with complementary skills, 
-              and connect with like-minded developers at events near you.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/register" className="bg-aws-orange text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-orange-500 transition-all transform hover:scale-105 shadow-lg">
-                Get Started Free
-              </Link>
-              <Link to="/login" className="bg-white/10 backdrop-blur-sm text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-white/20 transition-all border border-white/20">
-                Sign In
-              </Link>
-            </div>
-          </div>
-        </div>
-        
-        {/* Wave divider */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M0 120L60 105C120 90 240 60 360 45C480 30 600 30 720 37.5C840 45 960 60 1080 67.5C1200 75 1320 75 1380 75L1440 75V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="#F9FAFB"/>
-          </svg>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="py-12 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div>
-              <div className="text-3xl md:text-4xl font-bold text-primary-600">10K+</div>
-              <div className="text-gray-600 mt-1">Students</div>
-            </div>
-            <div>
-              <div className="text-3xl md:text-4xl font-bold text-primary-600">500+</div>
-              <div className="text-gray-600 mt-1">Teams Formed</div>
-            </div>
-            <div>
-              <div className="text-3xl md:text-4xl font-bold text-primary-600">100+</div>
-              <div className="text-gray-600 mt-1">Colleges</div>
-            </div>
-            <div>
-              <div className="text-3xl md:text-4xl font-bold text-primary-600">50+</div>
-              <div className="text-gray-600 mt-1">Events</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Everything you need to build your team
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              From identity verification to AI-powered matching, we've got you covered
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <div 
-                key={index}
-                className="card hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
-              >
-                <div className="w-14 h-14 bg-primary-100 rounded-xl flex items-center justify-center text-primary-600 mb-4 group-hover:bg-primary-600 group-hover:text-white transition-colors">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600">
-                  {feature.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              How it works
-            </h2>
-            <p className="text-lg text-gray-600">
-              Three simple steps to find your perfect team
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
-                1
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Verify & Create Profile</h3>
-              <p className="text-gray-600">Sign up with your college email and add your skills and interests</p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
-                2
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Get Matched</h3>
-              <p className="text-gray-600">Our AI finds teammates with complementary skills for you</p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
-                3
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Build & Win</h3>
-              <p className="text-gray-600">Connect, collaborate, and build amazing projects together</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-20 bg-gradient-to-r from-primary-600 to-primary-800 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Ready to find your team?
-          </h2>
-          <p className="text-xl text-primary-100 mb-8">
-            Join thousands of students building the future together
-          </p>
-          <Link 
-            to="/register" 
-            className="inline-block bg-aws-orange text-white px-10 py-4 rounded-lg font-semibold text-lg hover:bg-orange-500 transition-all transform hover:scale-105"
-          >
-            Start Now - It's Free
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p>Built with ❤️ for Bharat Builds Tour | ConnectCampus © 2026</p>
-        </div>
-      </footer>
+    <div className="flex flex-wrap gap-3">
+      <Link to="/dashboard" className="btn-primary">Go to dashboard</Link>
+      <Link to="/choose" className="btn-secondary">Find or create a team</Link>
     </div>
   );
 }
 
-export default Landing;
+/* ─────────────────────────────────────────────
+   Closing CTA section content
+───────────────────────────────────────────── */
+
+function ClosingCta({ user, profileComplete }) {
+  if (!user) {
+    return (
+      <>
+        <h2 className="text-2xl font-bold text-gray-900 mb-3">Ready to find your team?</h2>
+        <p className="text-gray-500 mb-6">
+          Create an account and set up your profile to get started.
+        </p>
+        <Link to="/register" className="btn-primary">Get Started</Link>
+      </>
+    );
+  }
+  if (!profileComplete) {
+    return (
+      <>
+        <h2 className="text-2xl font-bold text-gray-900 mb-3">
+          Complete your profile to start finding the right teams.
+        </h2>
+        <p className="text-gray-500 mb-6">
+          Skills and institution are required for matching to work.
+        </p>
+        <Link to="/profile" className="btn-primary">Complete your profile</Link>
+      </>
+    );
+  }
+  return (
+    <>
+      <h2 className="text-2xl font-bold text-gray-900 mb-3">
+        Ready to find your next opportunity?
+      </h2>
+      <p className="text-gray-500 mb-6">
+        Browse recommended teams or create your own.
+      </p>
+      <Link to="/dashboard" className="btn-primary">Go to dashboard</Link>
+    </>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Page
+───────────────────────────────────────────── */
+
+export default function Landing() {
+  const { user, profileComplete } = useAuth();
+
+  return (
+    <div className="min-h-screen bg-white">
+
+      {/* ══════════════════════════════════════
+          HERO
+      ══════════════════════════════════════ */}
+      <section className="border-b border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 py-20 md:py-28">
+          {/* Tagline chip */}
+          <p className="text-sm font-semibold text-primary-600 uppercase tracking-widest mb-5">
+            AI recommends. Humans decide.
+          </p>
+
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-5">
+            Build the right hackathon team.
+          </h1>
+
+          <p className="text-lg text-gray-600 max-w-2xl mb-8">
+            Teams define the skills they need. HackMatch recommends suitable candidates based
+            on those requirements. Leaders and candidates make every final decision themselves.
+          </p>
+
+          <CtaBlock user={user} profileComplete={profileComplete} />
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          TWO CORE PATHS
+      ══════════════════════════════════════ */}
+      <section className="bg-gray-50 border-b border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 py-16">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Two ways to use HackMatch</h2>
+          <p className="text-gray-500 mb-10 text-sm">
+            Both paths give you control. The AI only makes recommendations.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-6">
+
+            {/* Path A — Lead a Team */}
+            <div className="card flex flex-col">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
+                  <HiUserGroup className="h-5 w-5 text-primary-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">Lead a Team</p>
+                  <p className="text-xs text-gray-500">You create, you invite</p>
+                </div>
+              </div>
+
+              <ol className="space-y-2 text-sm text-gray-600 flex-1">
+                <li className="flex gap-2">
+                  <span className="font-semibold text-primary-600 flex-shrink-0">1.</span>
+                  Create a team and attach a competition
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-semibold text-primary-600 flex-shrink-0">2.</span>
+                  Define the skills your team still needs
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-semibold text-primary-600 flex-shrink-0">3.</span>
+                  Review candidates recommended for your skill gap
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-semibold text-primary-600 flex-shrink-0">4.</span>
+                  Send invitations to candidates you choose
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-semibold text-primary-600 flex-shrink-0">5.</span>
+                  The candidate decides whether to accept
+                </li>
+              </ol>
+
+              <div className="mt-5 pt-4 border-t border-gray-100">
+                <Link to="/teams/new" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                  Create a team
+                </Link>
+              </div>
+            </div>
+
+            {/* Path B — Find a Team */}
+            <div className="card flex flex-col">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
+                  <HiUsers className="h-5 w-5 text-primary-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">Find a Team</p>
+                  <p className="text-xs text-gray-500">You browse, you request</p>
+                </div>
+              </div>
+
+              <ol className="space-y-2 text-sm text-gray-600 flex-1">
+                <li className="flex gap-2">
+                  <span className="font-semibold text-primary-600 flex-shrink-0">1.</span>
+                  Set up your profile with your skills
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-semibold text-primary-600 flex-shrink-0">2.</span>
+                  See teams recommended based on your skill match
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-semibold text-primary-600 flex-shrink-0">3.</span>
+                  Browse all open teams and view their skill gaps
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-semibold text-primary-600 flex-shrink-0">4.</span>
+                  Send a join request to a team you want to join
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-semibold text-primary-600 flex-shrink-0">5.</span>
+                  The team leader decides whether to accept
+                </li>
+              </ol>
+
+              <div className="mt-5 pt-4 border-t border-gray-100">
+                <Link to="/teams" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                  Browse teams
+                </Link>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          REAL FEATURES
+      ══════════════════════════════════════ */}
+      <section className="border-b border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 py-16">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">How it works</h2>
+          <p className="text-gray-500 text-sm mb-10">
+            Three things HackMatch actually does.
+          </p>
+
+          <div className="grid md:grid-cols-3 gap-6">
+
+            <div className="card">
+              <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center mb-4">
+                <HiLightningBolt className="h-5 w-5 text-primary-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">Skill gap analysis</h3>
+              <p className="text-sm text-gray-600">
+                Every team has a live skill gap. You can see exactly which required skills are
+                already covered by current members and which are still missing.
+              </p>
+            </div>
+
+            <div className="card">
+              <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center mb-4">
+                <HiUserGroup className="h-5 w-5 text-primary-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">Candidate recommendations</h3>
+              <p className="text-sm text-gray-600">
+                Leaders see a ranked list of candidates who fill the remaining gap, each with
+                their matched skills and a plain-language explanation of why they were suggested.
+              </p>
+            </div>
+
+            <div className="card">
+              <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center mb-4">
+                <HiUsers className="h-5 w-5 text-primary-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">Two-way decision flow</h3>
+              <p className="text-sm text-gray-600">
+                Leaders invite candidates; individuals send join requests. In both cases the
+                other party makes the final decision. HackMatch never adds someone to a team
+                automatically.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          CLOSING CTA
+      ══════════════════════════════════════ */}
+      <section className="bg-gray-50 border-b border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+          <ClosingCta user={user} profileComplete={profileComplete} />
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          FOOTER
+      ══════════════════════════════════════ */}
+      <footer className="py-6">
+        <div className="max-w-4xl mx-auto px-4 text-center text-sm text-gray-400">
+          HackMatch · Built for Bharat Builds Tour · 2026
+        </div>
+      </footer>
+
+    </div>
+  );
+}

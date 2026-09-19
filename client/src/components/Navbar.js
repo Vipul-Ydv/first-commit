@@ -24,9 +24,9 @@ function Navbar() {
           <div className="flex items-center">
             <Link to="/" className="flex items-center gap-2">
               <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">C</span>
+                <span className="text-white font-bold text-xl">H</span>
               </div>
-              <span className="text-xl font-bold text-gray-900">ConnectCampus</span>
+              <span className="text-xl font-bold text-gray-900">HackMatch</span>
             </Link>
           </div>
 
