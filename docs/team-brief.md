@@ -12,17 +12,54 @@ A platform where:
 
 ## Core Flow
 
+Everyone starts the same way, then picks a direction. **There are two entry points, not one.**
+
 ```
-1. Sign up → Verify email
+1. Sign up  ->  Verify email
 2. Create profile (skills, interests)
-3. Add competition (AI extracts metadata)
-4. Create team → Enter required skills
-5. Get AI recommendations
-6. Send invite/request
-7. Accept → Team formed!
+3. Choose:  "Create a Team"   OR   "Find a Team"
 ```
 
+### A. Create a Team - *Leader -> Individual*
+
+```
+4a. Add competition        (AI extracts the 6 metadata fields)
+5a. Create team            -> leader MANUALLY enters required skills
+6a. Skill gap shown        (covered / remaining)
+7a. AI recommends CANDIDATES for the remaining gap  (+ why)
+8a. Leader sends an INVITATION
+9a. Candidate accepts / declines          <- the CANDIDATE decides
+10a. Team formed  ->  gap recalculates
+```
+
+### B. Find a Team - *Individual -> Team*
+
+```
+4b. Browse / search open teams
+5b. AI recommends TEAMS that match your skills  (+ why)
+6b. Open a team -> see competition, required skills, current gap
+7b. Individual sends a JOIN REQUEST
+8b. Leader accepts / rejects              <- the LEADER decides
+9b. Team formed  ->  gap recalculates
+```
+
+Both paths converge: membership changes -> collective skills update -> skill gap
+recalculates -> recommendations refresh.
+
+### The two directions are NOT the same object
+
+| Direction | Object created | Who decides | Endpoint |
+|---|---|---|---|
+| Leader -> Individual | **Invitation** | The candidate | `POST /teams/:id/invite` |
+| Individual -> Team | **Join Request** | The leader | `POST /teams/:id/join-request` |
+
+Do not collapse these into a single "send invite/request" step. Different sender,
+different decider, different endpoint, different dashboard.
+
+See `spec.md` A.5 (Individual -> Team) and A.6 (Leader -> Individual).
+
 ---
+
 
 ## Tech Stack
 
@@ -193,8 +230,3 @@ feature/recommendations
 
 ---
 
-## Questions?
-
-Ask in repo issues or WhatsApp group.
-
-**Good luck! 🚀**

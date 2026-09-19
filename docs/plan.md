@@ -8,13 +8,26 @@
 
 > **"AI recommends. Humans decide."**
 
-One complete, polished flow:
+**Two entry points into one matching loop.** Both must work for the demo.
+
 ```
-Sign up → Create profile → Add competition → Create team → 
-Get AI recommendations → Send invite/request → Accept → Team formed
+A. CREATE A TEAM  (leader-initiated)
+   Sign up -> Profile -> Add competition -> Create team + required skills ->
+   AI recommends CANDIDATES -> Leader sends INVITE -> Candidate accepts ->
+   Team formed
+
+B. FIND A TEAM  (individual-initiated)
+   Sign up -> Profile -> Browse open teams -> AI recommends TEAMS ->
+   Individual sends JOIN REQUEST -> Leader accepts -> Team formed
 ```
 
+Both converge on: membership changes -> skill gap recalculates -> recs refresh.
+
+Invitation and Join Request are two different objects with two different
+deciders - see `team-brief.md` "Core Flow" for the table.
+
 ---
+
 
 ## Features (Core Only)
 
