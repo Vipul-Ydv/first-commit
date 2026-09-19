@@ -5,48 +5,21 @@ import * as api from '../api';
 import toast from 'react-hot-toast';
 import {
   HiUsers, HiPlus, HiLightningBolt, HiUserGroup,
-  HiSparkles, HiClock, HiCheckCircle,
+  HiClock, HiCheckCircle, HiArrowRight,
 } from 'react-icons/hi';
 
 /* ─────────────────────────────────────────────
-   Helpers
+   Constants
 ───────────────────────────────────────────── */
 
-const TEAM_STATUS_BADGE = {
-  recruiting:  'bg-green-100 text-green-800',
-  almost_full: 'bg-yellow-100 text-yellow-800',
-  full:        'bg-red-100 text-red-800',
-  closed:      'bg-gray-100 text-gray-600',
+const STATUS_CFG = {
+  recruiting:  { label: 'Recruiting',  cls: 'bg-green-50 text-green-700 border border-green-200' },
+  almost_full: { label: 'Almost full', cls: 'bg-yellow-50 text-yellow-700 border border-yellow-200' },
+  full:        { label: 'Full',        cls: 'bg-red-50 text-red-700 border border-red-200' },
+  closed:      { label: 'Closed',      cls: 'bg-gray-100 text-gray-500' },
 };
 
-const PRIORITY_BADGE = {
-  high:   'bg-red-100 text-red-800',
-  medium: 'badge-skills',
-  low:    'bg-gray-100 text-gray-600',
-};
-
-function fmt(iso) {
-  if (!iso) return null;
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
-}
-
-/** Subtract matchedSkills from requiredSkills (both plain string arrays). */
-function stillNeeded(requiredSkills = [], matchedSkills = []) {
-  const matched = new Set(matchedSkills.map((s) => s.toLowerCase()));
-  return requiredSkills.filter((s) => !matched.has(s.toLowerCase()));
-}
-
-/* ─────────────────────────────────────────────
-   Request-to-Join button
-   Tracks per-teamId state: idle | sending | sent | error-code
-───────────────────────────────────────────── */
-
-// Error codes that should replace the button with an informative label
-// rather than showing a toast.
 const SILENT_CODES = new Set(['DUPLICATE_REQUEST', 'ALREADY_MEMBER', 'TEAM_FULL', 'NOT_ELIGIBLE']);
-
 const SILENT_LABEL = {
   DUPLICATE_REQUEST: 'Already requested',
   ALREADY_MEMBER:    'Already a member',
@@ -54,103 +27,100 @@ const SILENT_LABEL = {
   NOT_ELIGIBLE:      'Not eligible',
 };
 
-function JoinButton({ teamId, requestedTeams, onRequest }) {
-  const state = requestedTeams[teamId];
+function StatusBadge({ status }) {
+  const cfg = STATUS_CFG[status] || { label: status, cls: 'bg-gray-100 text-gray-500' };
+  return <span className={`badge ${cfg.cls}`}>{cfg.label}</span>;
+}
 
+function fmt(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function stillNeeded(required = [], matched = []) {
+  const m = new Set(matched.map((s) => s.toLowerCase()));
+  return required.filter((s) => !m.has(s.toLowerCase()));
+}
+
+/* ─────────────────────────────────────────────
+   Join button — tracks per-team state
+───────────────────────────────────────────── */
+
+function JoinButton({ teamId, state, onRequest }) {
   if (state === 'sent') {
     return (
-      <span className="badge bg-green-100 text-green-800 flex items-center gap-1">
-        <HiCheckCircle className="h-4 w-4" /> Request sent
+      <span className="badge bg-green-50 text-green-700 border border-green-200 flex items-center gap-1">
+        <HiCheckCircle className="h-3.5 w-3.5" /> Requested
       </span>
     );
   }
-
   if (SILENT_CODES.has(state)) {
-    return (
-      <span className="badge bg-gray-100 text-gray-600">
-        {SILENT_LABEL[state]}
-      </span>
-    );
+    return <span className="badge bg-gray-100 text-gray-500">{SILENT_LABEL[state]}</span>;
   }
-
-  const sending = state === 'sending';
+  const busy = state === 'sending';
   return (
     <button
-      onClick={(e) => {
-        e.preventDefault(); // cards are wrapped in <Link> — stop propagation
-        e.stopPropagation();
-        onRequest(teamId);
-      }}
-      disabled={sending}
-      className="btn-primary flex items-center gap-1 text-sm"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRequest(teamId); }}
+      disabled={busy}
+      className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1"
     >
-      {sending ? (
-        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-      ) : (
-        <><HiUsers className="h-4 w-4" /> Request to Join</>
-      )}
+      {busy
+        ? <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        : <HiUsers className="h-3.5 w-3.5" />}
+      {busy ? 'Sending…' : 'Request to join'}
     </button>
   );
 }
 
 /* ─────────────────────────────────────────────
-   Recommended team card
+   Recommended card
 ───────────────────────────────────────────── */
 
-function RecommendedCard({ rec, requestedTeams, onRequest }) {
-  const needed = stillNeeded(rec.requiredSkills, rec.matchedSkills);
+function RecommendedCard({ rec, reqState, onRequest }) {
+  const needed   = stillNeeded(rec.requiredSkills, rec.matchedSkills);
   const deadline = fmt(rec.deadline);
-  const statusCls = rec.status ? (TEAM_STATUS_BADGE[rec.status] || 'bg-gray-100 text-gray-600') : null;
 
   return (
-    <div className="card flex flex-col gap-3">
-      {/* Header row */}
+    <div className="card flex flex-col gap-3 hover:border-primary-200 hover:shadow-md transition-all duration-150">
+      {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <Link
             to={`/teams/${rec.teamId}`}
-            className="text-lg font-semibold text-gray-900 hover:text-primary-600 transition-colors"
+            className="font-semibold text-gray-900 hover:text-primary-600 transition-colors"
           >
             {rec.name}
           </Link>
           {rec.competitionName && (
-            <p className="text-sm text-gray-500 mt-0.5">{rec.competitionName}</p>
+            <p className="text-xs text-gray-500 mt-0.5 truncate">{rec.competitionName}</p>
           )}
         </div>
-        {statusCls && (
-          <span className={`badge ${statusCls} capitalize flex-shrink-0`}>
-            {rec.status.replace('_', ' ')}
-          </span>
-        )}
+        {rec.status && <StatusBadge status={rec.status} />}
       </div>
 
-      {/* AI reason — the key "AI recommends, humans decide" signal */}
+      {/* AI reason */}
       {rec.matchReason && (
-        <div className="flex items-start gap-2 bg-primary-50 border border-primary-100 rounded-lg px-3 py-2">
-          <HiLightningBolt className="h-4 w-4 text-primary-500 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-primary-800">{rec.matchReason}</p>
+        <div className="highlight-box">
+          <HiLightningBolt className="h-3.5 w-3.5 text-primary-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-primary-800 leading-relaxed">{rec.matchReason}</p>
         </div>
       )}
 
-      {/* Skills rows */}
+      {/* Skills */}
       <div className="space-y-2">
         {rec.matchedSkills?.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1">
-              Your match
-            </p>
+            <p className="tag-label text-green-700">Your match</p>
             <div className="flex flex-wrap gap-1">
               {rec.matchedSkills.map((s) => (
-                <span key={s} className="badge bg-green-100 text-green-800 text-xs">{s}</span>
+                <span key={s} className="badge bg-green-50 text-green-700 border border-green-200 text-xs">{s}</span>
               ))}
             </div>
           </div>
         )}
         {needed.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-              Still needed
-            </p>
+            <p className="tag-label text-gray-500">Still needed</p>
             <div className="flex flex-wrap gap-1">
               {needed.map((s) => (
                 <span key={s} className="badge badge-skills text-xs">{s}</span>
@@ -160,69 +130,61 @@ function RecommendedCard({ rec, requestedTeams, onRequest }) {
         )}
       </div>
 
-      {/* Footer row */}
+      {/* Footer */}
       <div className="flex items-center justify-between pt-2 border-t border-gray-100 flex-wrap gap-2">
-        <div className="flex items-center gap-3 text-sm text-gray-500">
+        <div className="meta-row text-xs">
           <span className="flex items-center gap-1">
-            <HiUsers className="h-4 w-4" />
-            {rec.memberCount ?? '?'} / {rec.maxMembers ?? '?'}
+            <HiUsers className="h-3.5 w-3.5" />
+            {rec.memberCount ?? '?'}/{rec.maxMembers ?? '?'}
           </span>
           {deadline && (
             <span className="flex items-center gap-1">
-              <HiClock className="h-4 w-4" />
-              {deadline}
+              <HiClock className="h-3.5 w-3.5" /> {deadline}
             </span>
           )}
         </div>
-        <JoinButton
-          teamId={rec.teamId}
-          requestedTeams={requestedTeams}
-          onRequest={onRequest}
-        />
+        <JoinButton teamId={rec.teamId} state={reqState} onRequest={onRequest} />
       </div>
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────
-   Browse team card
+   Browse card
 ───────────────────────────────────────────── */
 
-function BrowseCard({ team, requestedTeams, onRequest }) {
+function BrowseCard({ team, reqState, onRequest }) {
   const deadline = fmt(team.deadline);
-  const statusCls = TEAM_STATUS_BADGE[team.status] || 'bg-gray-100 text-gray-600';
 
   return (
-    <div className="card flex flex-col gap-3">
-      {/* Header row */}
+    <div className="card flex flex-col gap-3 hover:border-gray-300 hover:shadow-md transition-all duration-150">
+      {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <Link
             to={`/teams/${team.teamId}`}
-            className="text-lg font-semibold text-gray-900 hover:text-primary-600 transition-colors"
+            className="font-semibold text-gray-900 hover:text-primary-600 transition-colors"
           >
             {team.name}
           </Link>
           {team.competitionName && (
-            <p className="text-sm text-gray-500 mt-0.5">{team.competitionName}</p>
+            <p className="text-xs text-gray-500 mt-0.5 truncate">{team.competitionName}</p>
           )}
         </div>
-        <span className={`badge ${statusCls} capitalize flex-shrink-0`}>
-          {team.status?.replace('_', ' ')}
-        </span>
+        <StatusBadge status={team.status} />
       </div>
 
-      {/* Required skills (object array — use s.skill) */}
+      {/* Required skills */}
       {team.requiredSkills?.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-            Required skills
-          </p>
+          <p className="tag-label text-gray-500">Required</p>
           <div className="flex flex-wrap gap-1">
             {team.requiredSkills.map((s) => (
               <span
                 key={s.skill}
-                className={`badge text-xs ${PRIORITY_BADGE[s.priority] || 'badge-skills'}`}
+                className={`badge text-xs ${
+                  s.priority === 'high' ? 'bg-red-50 text-red-700 border border-red-100' : 'badge-skills'
+                }`}
               >
                 {s.skill}
               </span>
@@ -231,46 +193,39 @@ function BrowseCard({ team, requestedTeams, onRequest }) {
         </div>
       )}
 
-      {/* Skills still remaining (gap) */}
+      {/* Remaining gap */}
       {team.remaining?.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-red-700 uppercase tracking-wide mb-1">
-            Still needed
-          </p>
+          <p className="tag-label text-red-700">Still needed</p>
           <div className="flex flex-wrap gap-1">
             {team.remaining.map((s) => (
-              <span key={s} className="badge bg-red-100 text-red-800 text-xs">{s}</span>
+              <span key={s} className="badge bg-red-50 text-red-700 border border-red-100 text-xs">{s}</span>
             ))}
           </div>
         </div>
       )}
 
-      {/* Footer row */}
+      {/* Footer */}
       <div className="flex items-center justify-between pt-2 border-t border-gray-100 flex-wrap gap-2">
-        <div className="flex items-center gap-3 text-sm text-gray-500">
+        <div className="meta-row text-xs">
           <span className="flex items-center gap-1">
-            <HiUsers className="h-4 w-4" />
-            {team.memberCount ?? '?'} / {team.maxMembers ?? '?'}
+            <HiUsers className="h-3.5 w-3.5" />
+            {team.memberCount ?? '?'}/{team.maxMembers ?? '?'}
           </span>
           {deadline && (
             <span className="flex items-center gap-1">
-              <HiClock className="h-4 w-4" />
-              {deadline}
+              <HiClock className="h-3.5 w-3.5" /> {deadline}
             </span>
           )}
         </div>
-        <JoinButton
-          teamId={team.teamId}
-          requestedTeams={requestedTeams}
-          onRequest={onRequest}
-        />
+        <JoinButton teamId={team.teamId} state={reqState} onRequest={onRequest} />
       </div>
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────
-   Teams page
+   Page
 ───────────────────────────────────────────── */
 
 export default function Teams() {
@@ -279,11 +234,9 @@ export default function Teams() {
   const [recommendations, setRecommendations] = useState([]);
   const [browseTeams, setBrowseTeams]         = useState([]);
   const [loading, setLoading]                 = useState(true);
-  // Map of teamId → 'idle' | 'sending' | 'sent' | error-code string
   const [requestedTeams, setRequestedTeams]   = useState({});
 
-  // ── Load ──────────────────────────────────────────────────────────────────
-
+  /* ── Load ── */
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -300,12 +253,9 @@ export default function Teams() {
     }
   }, [user.userId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  // ── Join request ──────────────────────────────────────────────────────────
-
+  /* ── Request ── */
   const handleRequest = useCallback(async (teamId) => {
     setRequestedTeams((prev) => ({ ...prev, [teamId]: 'sending' }));
     try {
@@ -315,7 +265,6 @@ export default function Teams() {
     } catch (e) {
       const code = api.errorCode(e);
       if (SILENT_CODES.has(code)) {
-        // Replace button with informative label — no toast needed
         setRequestedTeams((prev) => ({ ...prev, [teamId]: code }));
       } else {
         toast.error(api.readError(e));
@@ -324,131 +273,107 @@ export default function Teams() {
     }
   }, []);
 
-  // ── Recommended team IDs (to deduplicate browse list) ────────────────────
+  const recommendedIds      = new Set(recommendations.map((r) => r.teamId));
+  const browseDeduplicated  = browseTeams.filter((t) => !recommendedIds.has(t.teamId));
 
-  const recommendedIds = new Set(recommendations.map((r) => r.teamId));
-
-  // ── Browse list with recommended teams removed ────────────────────────────
-
-  const browseDeduplicated = browseTeams.filter((t) => !recommendedIds.has(t.teamId));
-
-  // ── Loading ───────────────────────────────────────────────────────────────
-
+  /* ── Loading ── */
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
+      <div className="page-shell flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-600 border-t-transparent" />
       </div>
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
+    <div className="page-shell">
+      <div className="page-content">
 
         {/* Page header */}
         <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <HiUserGroup className="text-primary-600 h-8 w-8" />
-              Find a Team
+            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <HiUserGroup className="h-5 w-5 text-primary-600" /> Find a Team
             </h1>
-            <p className="text-gray-500 mt-1">
-              AI recommends. You decide.
-            </p>
+            <p className="text-sm text-gray-500 mt-0.5">AI recommends. You decide.</p>
           </div>
-          <Link to="/teams/new" className="btn-primary flex items-center gap-2 flex-shrink-0">
-            <HiPlus className="h-5 w-5" /> Create a Team
+          <Link to="/teams/new" className="btn-secondary flex items-center gap-1.5">
+            <HiPlus className="h-4 w-4" /> Create a team
           </Link>
         </div>
 
-        {/* ══════════════════════════════════════════
-            RECOMMENDED FOR YOU
-        ══════════════════════════════════════════ */}
-        <section className="mb-10">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <HiSparkles className="h-5 w-5 text-primary-500" />
-            Recommended for you
-          </h2>
+        {/* ── Recommended section ── */}
+        <div className="mb-10">
+          <div className="flex items-center gap-2 mb-1">
+            <HiLightningBolt className="h-4 w-4 text-primary-500" />
+            <h2 className="text-sm font-semibold text-gray-900">Recommended for you</h2>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">Based on your profile skills.</p>
 
           {recommendations.length > 0 ? (
-            <div className="grid md:grid-cols-2 gap-5">
+            <div className="grid md:grid-cols-2 gap-4">
               {recommendations.map((rec) => (
                 <RecommendedCard
                   key={rec.teamId}
                   rec={rec}
-                  requestedTeams={requestedTeams}
+                  reqState={requestedTeams[rec.teamId] || 'idle'}
                   onRequest={handleRequest}
                 />
               ))}
             </div>
           ) : (
-            <div className="card text-center py-10">
-              <HiSparkles className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <div className="card-sm text-center py-8">
               {profileComplete ? (
                 <>
-                  <p className="text-gray-600 font-medium">No recommended teams right now.</p>
-                  <p className="text-gray-400 text-sm mt-1">
-                    Check back later or browse all open teams below.
-                  </p>
+                  <p className="text-sm font-medium text-gray-600">No recommended teams right now.</p>
+                  <p className="text-xs text-gray-400 mt-1">Check back later, or browse all open teams below.</p>
                 </>
               ) : (
                 <>
-                  <p className="text-gray-600 font-medium">
-                    Complete your profile to get personalized team recommendations.
-                  </p>
-                  <p className="text-gray-400 text-sm mt-1">
-                    Skills and institution are needed for matching.
-                  </p>
-                  <Link to="/profile" className="btn-primary mt-4 inline-block">
-                    Complete profile
+                  <p className="text-sm font-medium text-gray-600">Complete your profile to get recommendations.</p>
+                  <p className="text-xs text-gray-400 mt-1">Skills and institution are required for matching.</p>
+                  <Link to="/profile" className="btn-primary mt-4 inline-flex items-center gap-1.5">
+                    Complete profile <HiArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </>
               )}
             </div>
           )}
-        </section>
+        </div>
 
-        {/* ══════════════════════════════════════════
-            ALL OPEN TEAMS
-        ══════════════════════════════════════════ */}
-        <section>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <HiUsers className="h-5 w-5 text-gray-600" />
-            All open teams
-          </h2>
+        {/* ── All open teams ── */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <HiUsers className="h-4 w-4 text-gray-500" />
+            <h2 className="text-sm font-semibold text-gray-900">All open teams</h2>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">Every team currently recruiting.</p>
 
           {browseDeduplicated.length > 0 ? (
-            <div className="grid md:grid-cols-2 gap-5">
+            <div className="grid md:grid-cols-2 gap-4">
               {browseDeduplicated.map((team) => (
                 <BrowseCard
                   key={team.teamId}
                   team={team}
-                  requestedTeams={requestedTeams}
+                  reqState={requestedTeams[team.teamId] || 'idle'}
                   onRequest={handleRequest}
                 />
               ))}
             </div>
-          ) : browseTeams.length > 0 && browseDeduplicated.length === 0 ? (
-            /* All open teams are already shown in the recommended section */
-            <div className="card text-center py-8">
-              <p className="text-gray-500 text-sm">
-                All open teams are already shown in your recommendations above.
-              </p>
+          ) : browseTeams.length > 0 ? (
+            <div className="card-sm text-center py-6">
+              <p className="text-sm text-gray-500">All open teams are already shown in your recommendations above.</p>
             </div>
           ) : (
-            <div className="card text-center py-10">
-              <HiUsers className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-600 font-medium">No open teams at the moment.</p>
-              <p className="text-gray-400 text-sm mt-1">Be the first to start one.</p>
-              <Link to="/teams/new" className="btn-primary mt-4 inline-block">
-                Create a Team
+            <div className="card-sm text-center py-8">
+              <HiUsers className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm font-medium text-gray-600">No open teams at the moment.</p>
+              <Link to="/teams/new" className="btn-primary mt-4 inline-flex items-center gap-1.5">
+                Create a team <HiArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           )}
-        </section>
+        </div>
 
       </div>
     </div>

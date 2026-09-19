@@ -2,22 +2,222 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import * as api from '../api';
 import toast from 'react-hot-toast';
-import {
-  HiUser, HiAcademicCap, HiBriefcase, HiPlus, HiX,
-  HiPencil, HiLink, HiCheck
-} from 'react-icons/hi';
+import { HiPlus, HiX, HiCheck, HiPencil, HiLink } from 'react-icons/hi';
+import { Spinner } from './Login';
 
 const AVAILABILITY_OPTIONS = ['weekdays', 'weekends', 'evenings', 'flexible'];
-const ROLE_OPTIONS = ['ML Engineer', 'Frontend Dev', 'Backend Dev', 'UI/UX Designer', 'Data Scientist', 'DevOps', 'Full Stack Dev', 'Product Manager'];
+const ROLE_OPTIONS = [
+  'ML Engineer', 'Frontend Dev', 'Backend Dev', 'UI/UX Designer',
+  'Data Scientist', 'DevOps', 'Full Stack Dev', 'Product Manager',
+];
 
-function Profile() {
+/* ── Small reusable pieces ── */
+
+function SectionCard({ title, required, children }) {
+  return (
+    <div className="card">
+      <div className="flex items-baseline gap-2 mb-4">
+        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+        {required && <span className="text-xs text-gray-400">required</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function FormField({ label, hint, required, children }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      {children}
+      {hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>}
+    </div>
+  );
+}
+
+function TagInput({ value: tags, onChange, placeholder, colorClass = 'badge-skills' }) {
+  const [input, setInput] = useState('');
+
+  const add = () => {
+    const v = input.trim();
+    if (!v || tags.includes(v)) return;
+    onChange([...tags, v]);
+    setInput('');
+  };
+
+  const remove = (tag) => onChange(tags.filter((t) => t !== tag));
+
+  return (
+    <div>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {tags.map((tag) => (
+            <span key={tag} className={`badge ${colorClass} flex items-center gap-1`}>
+              {tag}
+              <button
+                type="button"
+                onClick={() => remove(tag)}
+                className="hover:opacity-70 ml-0.5 flex-shrink-0"
+                aria-label={`Remove ${tag}`}
+              >
+                <HiX className="h-2.5 w-2.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+          className="input-field flex-1"
+          placeholder={placeholder}
+        />
+        <button
+          type="button"
+          onClick={add}
+          className="btn-secondary px-3 flex-shrink-0"
+          aria-label="Add"
+        >
+          <HiPlus className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ToggleChip({ label, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors duration-150 ${
+        active
+          ? 'bg-primary-600 text-white border-primary-600'
+          : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+      }`}
+    >
+      {active && <HiCheck className="h-3.5 w-3.5" />}
+      {label}
+    </button>
+  );
+}
+
+/* ── View mode: read-only display ── */
+
+function ViewSection({ title, children }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{title}</p>
+      {children}
+    </div>
+  );
+}
+
+function ViewProfile({ form, onEdit }) {
+  const institution = form.userType === 'student' ? form.collegeName : form.organizationName;
+
+  return (
+    <div className="space-y-6">
+      {/* Identity card */}
+      <div className="card">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+              <span className="text-lg font-bold text-primary-700 leading-none">
+                {(form.name || '?').charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">{form.name || 'Unnamed'}</h2>
+              {institution && <p className="text-sm text-gray-500 mt-0.5">{institution}</p>}
+              <span className="badge bg-gray-100 text-gray-600 capitalize mt-1">
+                {form.userType}
+              </span>
+            </div>
+          </div>
+          <button onClick={onEdit} className="btn-secondary flex items-center gap-1.5 flex-shrink-0">
+            <HiPencil className="h-3.5 w-3.5" /> Edit
+          </button>
+        </div>
+      </div>
+
+      {/* Skills + interests */}
+      <div className="card space-y-5">
+        <ViewSection title="Skills">
+          {form.skills.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {form.skills.map((s) => <span key={s} className="badge badge-skills">{s}</span>)}
+            </div>
+          ) : <p className="text-sm text-gray-400">No skills added yet.</p>}
+        </ViewSection>
+
+        <div className="border-t border-gray-100" />
+
+        <ViewSection title="Interests">
+          {form.interests.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {form.interests.map((s) => <span key={s} className="badge bg-purple-50 text-purple-700 border border-purple-100">{s}</span>)}
+            </div>
+          ) : <p className="text-sm text-gray-400">No interests added yet.</p>}
+        </ViewSection>
+      </div>
+
+      {/* Availability + roles */}
+      <div className="card space-y-5">
+        <ViewSection title="Availability">
+          {form.availability
+            ? <span className="badge bg-green-50 text-green-700 border border-green-100 capitalize">{form.availability}</span>
+            : <p className="text-sm text-gray-400">Not set.</p>}
+        </ViewSection>
+
+        <div className="border-t border-gray-100" />
+
+        <ViewSection title="Role preference">
+          {form.rolePreference.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {form.rolePreference.map((r) => <span key={r} className="badge bg-indigo-50 text-indigo-700 border border-indigo-100">{r}</span>)}
+            </div>
+          ) : <p className="text-sm text-gray-400">Not set.</p>}
+        </ViewSection>
+      </div>
+
+      {/* Links */}
+      {(form.github || form.linkedin) && (
+        <div className="card space-y-2">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Links</p>
+          {form.github && (
+            <a href={form.github} target="_blank" rel="noopener noreferrer"
+               className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 hover:underline">
+              <HiLink className="h-4 w-4" /> GitHub
+            </a>
+          )}
+          {form.linkedin && (
+            <a href={form.linkedin} target="_blank" rel="noopener noreferrer"
+               className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 hover:underline">
+              <HiLink className="h-4 w-4" /> LinkedIn
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Main component ── */
+
+export default function Profile() {
   const { user, updateUser } = useAuth();
 
   const [profileData, setProfileData] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
-
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [editing, setEditing]   = useState(false);
+  const [saving, setSaving]     = useState(false);
 
   const [form, setForm] = useState({
     userType: 'student',
@@ -33,110 +233,73 @@ function Profile() {
     rolePreference: [],
   });
 
-  // Tag input helpers
-  const [newSkill, setNewSkill] = useState('');
-  const [newInterest, setNewInterest] = useState('');
-
-  // ── Load profile on mount ──────────────────────────────────────────────────
+  /* ── Load ── */
   useEffect(() => {
     if (!user) return;
     setLoadingProfile(true);
-    api
-      .getProfile(user.userId)
-      .then((data) => {
-        setProfileData(data);
-        populateForm(data);
-      })
+    api.getProfile(user.userId)
+      .then((data) => { setProfileData(data); populateForm(data); })
       .catch((e) => {
-        // 404 means the profile doesn't exist yet — drop into edit mode
-        if (api.errorCode(e) === 'NOT_FOUND') {
-          setEditing(true);
-        } else {
-          toast.error(api.readError(e));
-        }
+        if (api.errorCode(e) === 'NOT_FOUND') setEditing(true);
+        else toast.error(api.readError(e));
       })
       .finally(() => setLoadingProfile(false));
   }, [user]); // eslint-disable-line
 
   function populateForm(data) {
     setForm({
-      userType: data.userType || 'student',
-      name: data.name || '',
-      collegeName: data.collegeName || '',
-      organizationName: data.organizationName || '',
-      github: data.github || '',
-      linkedin: data.linkedin || '',
-      interests: data.interests || [],
-      skills: data.skills || [],
+      userType:               data.userType || 'student',
+      name:                   data.name || '',
+      collegeName:            data.collegeName || '',
+      organizationName:       data.organizationName || '',
+      github:                 data.github || '',
+      linkedin:               data.linkedin || '',
+      interests:              data.interests || [],
+      skills:                 data.skills || [],
       competitionPreferences: data.competitionPreferences || [],
-      availability: data.availability || '',
-      rolePreference: data.rolePreference || [],
+      availability:           data.availability || '',
+      rolePreference:         data.rolePreference || [],
     });
   }
 
-  // ── Form helpers ───────────────────────────────────────────────────────────
   const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
-  const addTag = (field, value, setter) => {
-    const v = value.trim();
-    if (!v || form[field].includes(v)) return;
-    set(field, [...form[field], v]);
-    setter('');
-  };
+  const toggleAvailability = (opt) =>
+    set('availability', form.availability === opt ? '' : opt);
 
-  const removeTag = (field, value) =>
-    set(field, form[field].filter((t) => t !== value));
-
-  const toggleArrayItem = (field, value) => {
-    const current = form[field];
-    set(
-      field,
-      current.includes(value) ? current.filter((v) => v !== value) : [...current, value]
+  const toggleRole = (role) =>
+    set('rolePreference',
+      form.rolePreference.includes(role)
+        ? form.rolePreference.filter((r) => r !== role)
+        : [...form.rolePreference, role]
     );
-  };
 
-  // ── Save ───────────────────────────────────────────────────────────────────
+  /* ── Save ── */
   const handleSave = async (e) => {
     e.preventDefault();
-
-    if (!form.name.trim()) {
-      toast.error('Name is required.');
-      return;
-    }
+    if (!form.name.trim()) { toast.error('Name is required.'); return; }
     if (form.userType === 'student' && !form.collegeName.trim()) {
-      toast.error('College name is required for students.');
-      return;
+      toast.error('College name is required for students.'); return;
     }
     if (form.userType === 'professional' && !form.organizationName.trim()) {
-      toast.error('Organisation name is required for professionals.');
-      return;
+      toast.error('Organisation name is required for professionals.'); return;
     }
     if (form.skills.length === 0) {
-      toast.error('Add at least one skill — it is needed for matching.');
-      return;
+      toast.error('Add at least one skill — it is needed for matching.'); return;
     }
-
     setSaving(true);
     try {
-      const payload = { ...form };
-
-      let saved;
-      if (profileData) {
-        saved = await api.updateProfile(user.userId, payload);
-      } else {
-        saved = await api.createProfile(payload);
-      }
-
+      const saved = profileData
+        ? await api.updateProfile(user.userId, form)
+        : await api.createProfile(form);
       setProfileData(saved);
       populateForm(saved);
-      // Merge back into AuthContext so profileComplete updates immediately
       updateUser({
         name: saved.name,
         skills: saved.skills,
         collegeName: saved.collegeName,
         organizationName: saved.organizationName,
       });
-
       toast.success('Profile saved!');
       setEditing(false);
     } catch (e) {
@@ -147,434 +310,204 @@ function Profile() {
   };
 
   const cancelEdit = () => {
-    if (profileData) {
-      populateForm(profileData);
-      setEditing(false);
-    }
-    // If no profile yet, stay in edit mode — there is nothing to cancel to
+    if (profileData) { populateForm(profileData); setEditing(false); }
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  /* ── Loading ── */
   if (loadingProfile) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-600 border-t-transparent" />
       </div>
     );
   }
 
+  /* ── View mode ── */
+  if (!editing) {
+    return (
+      <div className="page-shell">
+        <div className="page-content-narrow">
+          <ViewProfile form={form} onEdit={() => setEditing(true)} />
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Edit mode ── */
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-3xl mx-auto px-4">
-
-        {/* ── Page header ── */}
-        <div className="card mb-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <HiUser className="h-8 w-8 text-primary-600" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {form.name || user?.name || 'Your Profile'}
-                </h1>
-                <p className="text-gray-500 text-sm">{user?.email}</p>
-                {form.userType === 'student' && form.collegeName && (
-                  <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
-                    <HiAcademicCap className="h-4 w-4" /> {form.collegeName}
-                  </p>
-                )}
-                {form.userType === 'professional' && form.organizationName && (
-                  <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
-                    <HiBriefcase className="h-4 w-4" /> {form.organizationName}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {!editing && (
-              <button
-                onClick={() => setEditing(true)}
-                className="btn-secondary flex items-center gap-2"
-              >
-                <HiPencil className="h-4 w-4" />
-                Edit
-              </button>
-            )}
-          </div>
+    <div className="page-shell">
+      <div className="page-content-narrow">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-bold text-gray-900">
+            {profileData ? 'Edit profile' : 'Set up your profile'}
+          </h1>
+          {profileData && (
+            <button onClick={cancelEdit} className="btn-secondary">Cancel</button>
+          )}
         </div>
 
-        {editing ? (
-          /* ════════════════════════ EDIT MODE ════════════════════════ */
-          <form onSubmit={handleSave} className="space-y-6">
+        <form onSubmit={handleSave} className="space-y-5">
 
-            {/* User type toggle */}
-            <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Account type</h2>
-              <div className="flex gap-3">
-                {['student', 'professional'].map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => set('userType', type)}
-                    className={`flex-1 py-3 rounded-lg border font-medium capitalize transition-colors duration-150 ${
-                      form.userType === type
-                        ? 'bg-primary-600 text-white border-primary-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary-400'
-                    }`}
-                  >
-                    {type === 'student' ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <HiAcademicCap className="h-4 w-4" /> Student
-                      </span>
-                    ) : (
-                      <span className="flex items-center justify-center gap-2">
-                        <HiBriefcase className="h-4 w-4" /> Professional
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* ── Identity ── */}
+          <SectionCard title="Identity" required>
+            <div className="space-y-4">
 
-            {/* Basic info */}
-            <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic info</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Full name <span className="text-red-500">*</span>
-                  </label>
+              {/* User type */}
+              <FormField label="Account type">
+                <div className="grid grid-cols-2 gap-2">
+                  {['student', 'professional'].map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => set('userType', type)}
+                      className={`py-2 text-sm font-medium rounded-md border transition-colors duration-150 capitalize ${
+                        form.userType === type
+                          ? 'bg-primary-600 text-white border-primary-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </FormField>
+
+              {/* Name */}
+              <FormField label="Full name" required>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => set('name', e.target.value)}
+                  className="input-field"
+                  placeholder="Your name"
+                  required
+                />
+              </FormField>
+
+              {/* Institution */}
+              {form.userType === 'student' ? (
+                <FormField label="College / University" required>
                   <input
                     type="text"
-                    value={form.name}
-                    onChange={(e) => set('name', e.target.value)}
+                    value={form.collegeName}
+                    onChange={(e) => set('collegeName', e.target.value)}
                     className="input-field"
-                    placeholder="Your name"
-                    required
+                    placeholder="e.g. BTKIT, IIT Delhi"
+                  />
+                </FormField>
+              ) : (
+                <FormField label="Organisation" required>
+                  <input
+                    type="text"
+                    value={form.organizationName}
+                    onChange={(e) => set('organizationName', e.target.value)}
+                    className="input-field"
+                    placeholder="e.g. Google, Startup Inc."
+                  />
+                </FormField>
+              )}
+            </div>
+          </SectionCard>
+
+          {/* ── Skills ── */}
+          <SectionCard title="Skills" required>
+            <p className="text-xs text-gray-500 mb-3">
+              Used by the AI for matching. Add everything you are comfortable with.
+            </p>
+            <TagInput
+              value={form.skills}
+              onChange={(v) => set('skills', v)}
+              placeholder="e.g. Python, AWS, UI/UX — press Enter to add"
+              colorClass="badge-skills"
+            />
+          </SectionCard>
+
+          {/* ── Interests ── */}
+          <SectionCard title="Interests">
+            <TagInput
+              value={form.interests}
+              onChange={(v) => set('interests', v)}
+              placeholder="e.g. AI, Climate Tech, EdTech"
+              colorClass="bg-purple-50 text-purple-700 border border-purple-100"
+            />
+          </SectionCard>
+
+          {/* ── Availability ── */}
+          <SectionCard title="Availability">
+            <div className="flex flex-wrap gap-2">
+              {AVAILABILITY_OPTIONS.map((opt) => (
+                <ToggleChip
+                  key={opt}
+                  label={opt}
+                  active={form.availability === opt}
+                  onClick={() => toggleAvailability(opt)}
+                />
+              ))}
+            </div>
+          </SectionCard>
+
+          {/* ── Role preference ── */}
+          <SectionCard title="Role preference">
+            <p className="text-xs text-gray-500 mb-3">The roles you want to play on a team.</p>
+            <div className="flex flex-wrap gap-2">
+              {ROLE_OPTIONS.map((role) => (
+                <ToggleChip
+                  key={role}
+                  label={role}
+                  active={form.rolePreference.includes(role)}
+                  onClick={() => toggleRole(role)}
+                />
+              ))}
+            </div>
+          </SectionCard>
+
+          {/* ── Links ── */}
+          <SectionCard title="Links">
+            <div className="space-y-3">
+              <FormField label="GitHub">
+                <div className="relative">
+                  <HiLink className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="url"
+                    value={form.github}
+                    onChange={(e) => set('github', e.target.value)}
+                    className="input-field pl-9"
+                    placeholder="https://github.com/username"
                   />
                 </div>
-
-                {form.userType === 'student' ? (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      College / University <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={form.collegeName}
-                      onChange={(e) => set('collegeName', e.target.value)}
-                      className="input-field"
-                      placeholder="e.g. BTKIT, IIT Delhi"
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Organisation <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={form.organizationName}
-                      onChange={(e) => set('organizationName', e.target.value)}
-                      className="input-field"
-                      placeholder="e.g. Google, Startup Inc."
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Links */}
-            <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Links</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    GitHub
-                  </label>
-                  <div className="relative">
-                    <HiLink className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      type="url"
-                      value={form.github}
-                      onChange={(e) => set('github', e.target.value)}
-                      className="input-field pl-9"
-                      placeholder="https://github.com/username"
-                    />
-                  </div>
+              </FormField>
+              <FormField label="LinkedIn">
+                <div className="relative">
+                  <HiLink className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="url"
+                    value={form.linkedin}
+                    onChange={(e) => set('linkedin', e.target.value)}
+                    className="input-field pl-9"
+                    placeholder="https://linkedin.com/in/username"
+                  />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    LinkedIn
-                  </label>
-                  <div className="relative">
-                    <HiLink className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      type="url"
-                      value={form.linkedin}
-                      onChange={(e) => set('linkedin', e.target.value)}
-                      className="input-field pl-9"
-                      placeholder="https://linkedin.com/in/username"
-                    />
-                  </div>
-                </div>
-              </div>
+              </FormField>
             </div>
+          </SectionCard>
 
-            {/* Skills */}
-            <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-1">
-                Skills <span className="text-red-500">*</span>
-              </h2>
-              <p className="text-sm text-gray-500 mb-4">
-                Used by the AI for matching — add everything you are comfortable with.
-              </p>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {form.skills.map((skill) => (
-                  <span key={skill} className="badge badge-skills flex items-center gap-1">
-                    {skill}
-                    <button
-                      type="button"
-                      onClick={() => removeTag('skills', skill)}
-                      className="hover:text-blue-900 ml-0.5"
-                      aria-label={`Remove ${skill}`}
-                    >
-                      <HiX className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-                {form.skills.length === 0 && (
-                  <p className="text-sm text-gray-400">No skills added yet.</p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newSkill}
-                  onChange={(e) => setNewSkill(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); addTag('skills', newSkill, setNewSkill); }
-                  }}
-                  className="input-field"
-                  placeholder="e.g. Python, AWS, UI/UX"
-                />
-                <button
-                  type="button"
-                  onClick={() => addTag('skills', newSkill, setNewSkill)}
-                  className="btn-primary flex-shrink-0 flex items-center gap-1"
-                >
-                  <HiPlus className="h-4 w-4" /> Add
-                </button>
-              </div>
-            </div>
-
-            {/* Interests */}
-            <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Interests</h2>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {form.interests.map((interest) => (
-                  <span key={interest} className="badge bg-purple-100 text-purple-800 flex items-center gap-1">
-                    {interest}
-                    <button
-                      type="button"
-                      onClick={() => removeTag('interests', interest)}
-                      className="hover:text-purple-900 ml-0.5"
-                      aria-label={`Remove ${interest}`}
-                    >
-                      <HiX className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-                {form.interests.length === 0 && (
-                  <p className="text-sm text-gray-400">No interests added yet.</p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newInterest}
-                  onChange={(e) => setNewInterest(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); addTag('interests', newInterest, setNewInterest); }
-                  }}
-                  className="input-field"
-                  placeholder="e.g. AI, Climate Tech, EdTech"
-                />
-                <button
-                  type="button"
-                  onClick={() => addTag('interests', newInterest, setNewInterest)}
-                  className="btn-primary flex-shrink-0 flex items-center gap-1"
-                >
-                  <HiPlus className="h-4 w-4" /> Add
-                </button>
-              </div>
-            </div>
-
-            {/* Availability */}
-            <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Availability</h2>
-              <div className="flex flex-wrap gap-3">
-                {AVAILABILITY_OPTIONS.map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => set('availability', form.availability === opt ? '' : opt)}
-                    className={`px-4 py-2 rounded-lg border font-medium capitalize transition-colors duration-150 ${
-                      form.availability === opt
-                        ? 'bg-primary-600 text-white border-primary-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary-400'
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Role preference */}
-            <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Role preference</h2>
-              <p className="text-sm text-gray-500 mb-4">
-                The roles you want to play on a team — pick all that apply.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {ROLE_OPTIONS.map((role) => (
-                  <button
-                    key={role}
-                    type="button"
-                    onClick={() => toggleArrayItem('rolePreference', role)}
-                    className={`px-4 py-2 rounded-lg border font-medium transition-colors duration-150 flex items-center gap-1.5 ${
-                      form.rolePreference.includes(role)
-                        ? 'bg-primary-600 text-white border-primary-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary-400'
-                    }`}
-                  >
-                    {form.rolePreference.includes(role) && <HiCheck className="h-3.5 w-3.5" />}
-                    {role}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Action row */}
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                disabled={saving}
-                className="flex-1 btn-primary flex items-center justify-center"
-              >
-                {saving ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
-                ) : (
-                  'Save Profile'
-                )}
+          {/* ── Submit ── */}
+          <div className="flex items-center gap-3 pb-4">
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn-primary flex items-center gap-2"
+            >
+              {saving ? <><Spinner /> Saving…</> : 'Save profile'}
+            </button>
+            {profileData && (
+              <button type="button" onClick={cancelEdit} className="btn-secondary">
+                Cancel
               </button>
-              {profileData && (
-                <button
-                  type="button"
-                  onClick={cancelEdit}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          </form>
-
-        ) : (
-          /* ════════════════════════ VIEW MODE ════════════════════════ */
-          <div className="space-y-6">
-
-            {/* Skills */}
-            <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Skills</h2>
-              {form.skills.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {form.skills.map((skill) => (
-                    <span key={skill} className="badge badge-skills">{skill}</span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-400 text-sm">No skills added yet.</p>
-              )}
-            </div>
-
-            {/* Interests */}
-            <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Interests</h2>
-              {form.interests.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {form.interests.map((interest) => (
-                    <span key={interest} className="badge bg-purple-100 text-purple-800">{interest}</span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-400 text-sm">No interests added yet.</p>
-              )}
-            </div>
-
-            {/* Availability + Role preference */}
-            <div className="card">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Availability &amp; role</h2>
-              <div className="space-y-3">
-                <div>
-                  <span className="text-sm font-medium text-gray-600">Availability: </span>
-                  {form.availability ? (
-                    <span className="badge bg-green-100 text-green-800 capitalize">{form.availability}</span>
-                  ) : (
-                    <span className="text-gray-400 text-sm">Not set</span>
-                  )}
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-600">Role preference: </span>
-                  {form.rolePreference.length > 0 ? (
-                    <span className="flex flex-wrap gap-2 mt-1">
-                      {form.rolePreference.map((r) => (
-                        <span key={r} className="badge bg-indigo-100 text-indigo-800">{r}</span>
-                      ))}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 text-sm">Not set</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Links */}
-            {(form.github || form.linkedin) && (
-              <div className="card">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Links</h2>
-                <div className="space-y-2">
-                  {form.github && (
-                    <a
-                      href={form.github}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-primary-600 hover:underline text-sm"
-                    >
-                      <HiLink className="h-4 w-4" /> GitHub
-                    </a>
-                  )}
-                  {form.linkedin && (
-                    <a
-                      href={form.linkedin}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-primary-600 hover:underline text-sm"
-                    >
-                      <HiLink className="h-4 w-4" /> LinkedIn
-                    </a>
-                  )}
-                </div>
-              </div>
             )}
-
           </div>
-        )}
+        </form>
       </div>
     </div>
   );
 }
-
-export default Profile;
