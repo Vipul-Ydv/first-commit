@@ -130,3 +130,28 @@ trigger a rebuild.
 - [ ] Both directions work: invitation **and** join request
 - [ ] Skill gap visibly recalculates after someone joins
 - [ ] Video recorded against the deployed URL, not localhost
+
+---
+
+## Demo logins
+
+Seeded users have no password by default - they exist to fill the
+recommendation lists, not to be signed into. But the demo needs to show a
+candidate *accepting* an invitation, which means signing in as them.
+
+Set `SEED_PASSWORD` when seeding to give every seeded user that password:
+
+```bash
+cd server
+STORE=dynamo AWS_REGION=us-east-1 SEED_PASSWORD=<pick one> node -e "require('./store/seed').seed(require('./store').createStore().store).then(c => console.log('seeded', c))"
+```
+
+The result prints `loginEnabled: true` when it took effect.
+
+Then `aisha@btkit.ac.in`, `neha@btkit.ac.in` and the rest all sign in with that
+password. Emails follow the pattern `<firstname>@btkit.ac.in` - see
+`server/store/seed.js`.
+
+**Opt-in on purpose.** A shared known password across accounts on a public API
+is fine for a demo full of fake people and unacceptable anywhere else. Never
+set this on a deployment holding real users.
