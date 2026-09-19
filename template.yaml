@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: HackMatch backend - API Gateway + Lambda + DynamoDB
+
+# Deploy:  sam build && sam deploy --guided
+# See docs/deploy.md.
+
+Parameters:
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    Description: Signing secret for session tokens. Generate a random one; do not reuse a value from source control.
+  ExtractionProvider:
+    Type: String
+    Default: rules
+    AllowedValues: [rules, bedrock]
+    Description: rules needs no model access. Switch to bedrock once the account is authorized.
+  BedrockModelId:
+    Type: String
+    Default: ''
+    Description: Copy exactly from the Bedrock model page. Usually a cross-region inference profile id.
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 20
+    MemorySize: 512
+    Architectures: [arm64]
+
+Resources:
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+      CorsConfiguration:
+        AllowOrigins: ['*']
+        AllowHeaders: [Content-Type, Authorization]
+        AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: server/
+      Handler: lambda.handler
+      Environment:
+        Variables:
+          NODE_ENV: production
+          STORE: dynamo
+          JWT_SECRET: !Ref JwtSecret
+          EXTRACTION_PROVIDER: !Ref ExtractionProvider
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          BEDROCK_REGION: us-east-1
+          TABLE_USERS: !Ref UsersTable
+          TABLE_COMPETITIONS: !Ref CompetitionsTable
+          TABLE_TEAMS: !Ref TeamsTable
+          TABLE_JOIN_REQUESTS: !Ref JoinRequestsTable
+          TABLE_INVITATIONS: !Ref InvitationsTable
+      Policies:
+        # Least privilege: only these five tables, nothing else in the account.
+        - DynamoDBCrudPolicy: { TableName: !Ref UsersTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref CompetitionsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref TeamsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref JoinRequestsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref InvitationsTable }
+        - Statement:
+            - Effect: Allow
+              Action: [bedrock:InvokeModel]
+              Resource: '*'
+      Events:
+        Any:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /{proxy+}
+            Method: ANY
+        Root:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /
+            Method: ANY
+
+  # PAY_PER_REQUEST so there is no idle cost and nothing to capacity-plan.
+  UsersTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey: { Name: userId, Type: String }
+      TableName: HackMatch-Users
+
+  CompetitionsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey: { Name: competitionId, Type: String }
+      TableName: HackMatch-Competitions
+
+  TeamsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey: { Name: teamId, Type: String }
+      TableName: HackMatch-Teams
+
+  JoinRequestsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey: { Name: requestId, Type: String }
+      TableName: HackMatch-JoinRequests
+
+  InvitationsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey: { Name: invitationId, Type: String }
+      TableName: HackMatch-Invitations
+
+Outputs:
+  ApiUrl:
+    Description: Base URL - set this as REACT_APP_API_URL in Amplify
+    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod'

@@ -1,0 +1,24 @@
+# AWS Amplify build spec for the React frontend.
+#
+# Connect the repo in the Amplify console and set REACT_APP_API_URL to the
+# ApiUrl output from the SAM stack. Amplify picks this file up automatically.
+
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd client
+        # npm install, not npm ci - lockfiles are gitignored in this repo to
+        # keep the diff readable.
+        - npm install
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: client/build
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - client/node_modules/**/*
