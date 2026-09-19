@@ -3,10 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import * as api from '../api';
 import toast from 'react-hot-toast';
-import {
-  HiArrowLeft, HiUsers, HiLightningBolt,
-  HiCheckCircle, HiClock, HiLink, HiUserGroup,
-} from 'react-icons/hi';
+import { HiArrowLeft, HiUsers, HiLightningBolt, HiCheckCircle, HiClock, HiLink, HiUserGroup, HiDocumentText } from 'react-icons/hi';
 import { Spinner } from './Login';
 
 /* ─────────────────────────────────────────────
@@ -371,6 +368,12 @@ export default function TeamDetail() {
                       <HiClock className="h-3.5 w-3.5" />{deadline}
                     </span>
                   )}
+                  {team.competition.documentKey && (
+                    <BriefLink
+                      competitionId={team.competition.competitionId}
+                      filename={team.competition.documentName}
+                    />
+                  )}
                 </p>
               ) : (
                 <p className="text-xs text-gray-400">No competition attached</p>
@@ -537,5 +540,42 @@ export default function TeamDetail() {
 
       </div>
     </div>
+  );
+}
+
+
+/**
+ * Opens the brief the leader uploaded.
+ *
+ * The link is fetched on click rather than up front: the API returns a
+ * presigned S3 URL that expires in five minutes, so one generated at page load
+ * would often be dead by the time anyone pressed it.
+ */
+function BriefLink({ competitionId, filename }) {
+  const [loading, setLoading] = useState(false);
+
+  const open = async () => {
+    setLoading(true);
+    try {
+      const { url } = await api.getCompetitionDocument(competitionId);
+      window.open(url, '_blank', 'noopener');
+    } catch (e) {
+      toast.error(api.readError(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={open}
+      disabled={loading}
+      className="ml-2 inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 hover:underline disabled:opacity-60"
+      title={filename || 'Competition brief'}
+    >
+      <HiDocumentText className="h-3.5 w-3.5" />
+      {loading ? 'Opening…' : (filename || 'View brief')}
+    </button>
   );
 }
