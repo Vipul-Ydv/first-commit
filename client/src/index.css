@@ -2,46 +2,295 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Global base ── */
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #FAF9F5;
+  color: #17201B;
+}
+
+/* ── Smooth transitions for interactive elements ── */
+*, *::before, *::after {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reset transition on animated elements that need their own timing */
+.animate-spin, .animate-pulse, .animate-bounce {
+  transition: none;
 }
 
 @layer components {
+
+  /* ════════════════════════════════════════
+     BUTTONS
+  ════════════════════════════════════════ */
+
   .btn-primary {
-    @apply bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold 
-           hover:bg-primary-700 transition-colors duration-200 
-           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    @apply inline-flex items-center justify-center gap-1.5
+           bg-hm-green text-white
+           px-5 py-2.5
+           text-sm font-semibold
+           rounded-lg
+           border border-hm-green
+           hover:bg-hm-green-dark hover:border-hm-green-dark
+           focus:outline-none focus:ring-2 focus:ring-hm-green focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed
+           shadow-sm;
   }
 
   .btn-secondary {
-    @apply bg-gray-200 text-gray-800 px-6 py-3 rounded-lg font-semibold 
-           hover:bg-gray-300 transition-colors duration-200;
+    @apply inline-flex items-center justify-center gap-1.5
+           bg-white text-hm-text
+           px-5 py-2.5
+           text-sm font-semibold
+           rounded-lg
+           border border-hm-border
+           hover:bg-hm-base hover:border-hm-muted
+           focus:outline-none focus:ring-2 focus:ring-hm-green focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
   }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5
+           bg-white text-red-600
+           px-5 py-2.5
+           text-sm font-semibold
+           rounded-lg
+           border border-red-200
+           hover:bg-red-50 hover:border-red-300
+           focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* ════════════════════════════════════════
+     CARDS
+  ════════════════════════════════════════ */
 
   .card {
-    @apply bg-white rounded-xl shadow-lg p-6 border border-gray-100;
+    @apply bg-white rounded-hm border border-hm-border shadow-hm-card p-6;
   }
+
+  .card-sm {
+    @apply bg-white rounded-hm border border-hm-border shadow-hm-card p-4;
+  }
+
+  /* Card with a green left accent border */
+  .card-accent {
+    @apply bg-white rounded-hm border border-hm-border shadow-hm-card p-5
+           border-l-4 border-l-hm-green;
+  }
+
+  /* ════════════════════════════════════════
+     FORM INPUTS
+  ════════════════════════════════════════ */
 
   .input-field {
-    @apply w-full px-4 py-3 border border-gray-300 rounded-lg 
-           focus:outline-none focus:ring-2 focus:ring-primary-500 
-           focus:border-transparent;
+    @apply w-full px-3.5 py-2.5
+           bg-white
+           border border-hm-border rounded-lg
+           text-sm text-hm-text
+           placeholder:text-hm-subtle
+           focus:outline-none focus:ring-2 focus:ring-hm-green focus:border-hm-green
+           disabled:bg-hm-base disabled:text-hm-muted;
   }
 
+  /* ════════════════════════════════════════
+     BADGES / TAGS
+  ════════════════════════════════════════ */
+
   .badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+    @apply inline-flex items-center
+           px-2.5 py-0.5
+           rounded-md
+           text-xs font-semibold;
   }
 
   .badge-verified {
-    @apply bg-green-100 text-green-800;
+    @apply bg-hm-green-light text-hm-green;
   }
 
+  /* Skills — green tinted */
   .badge-skills {
-    @apply bg-blue-100 text-blue-800;
+    @apply bg-hm-green-light text-hm-green border border-hm-green-light;
   }
+
+  /* Match highlight — yellow */
+  .badge-match {
+    @apply bg-hm-yellow-light text-hm-yellow-dark border border-hm-yellow;
+  }
+
+  /* Attention / deadline — coral */
+  .badge-coral {
+    @apply bg-hm-coral-light text-hm-coral-dark border border-hm-coral;
+  }
+
+  /* ════════════════════════════════════════
+     PAGE SHELL
+  ════════════════════════════════════════ */
+
+  .page-shell {
+    @apply min-h-screen bg-hm-base;
+  }
+
+  .page-content {
+    @apply max-w-5xl mx-auto px-4 sm:px-6 py-8;
+  }
+
+  .page-content-narrow {
+    @apply max-w-3xl mx-auto px-4 sm:px-6 py-8;
+  }
+
+  /* ════════════════════════════════════════
+     TYPOGRAPHY UTILITIES
+  ════════════════════════════════════════ */
+
+  .section-title {
+    @apply text-base font-bold text-hm-text;
+  }
+
+  /* Small uppercase label above a group */
+  .tag-label {
+    @apply text-xs font-bold uppercase tracking-widest mb-1.5;
+  }
+
+  /* ════════════════════════════════════════
+     SKILL GAP
+  ════════════════════════════════════════ */
+
+  .gap-track {
+    @apply w-full bg-hm-border rounded-full h-2.5;
+  }
+
+  .gap-fill {
+    @apply bg-hm-green h-2.5 rounded-full;
+    transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ════════════════════════════════════════
+     HIGHLIGHT BOX (AI reason / note)
+  ════════════════════════════════════════ */
+
+  .highlight-box {
+    @apply flex items-start gap-2
+           bg-hm-green-faint border border-hm-green-light
+           rounded-lg px-3 py-2.5;
+  }
+
+  /* Yellow highlight box for match reason */
+  .highlight-box-yellow {
+    @apply flex items-start gap-2
+           bg-hm-yellow-light border border-hm-yellow
+           rounded-lg px-3 py-2.5;
+  }
+
+  /* ════════════════════════════════════════
+     META ROW
+  ════════════════════════════════════════ */
+
+  .meta-row {
+    @apply flex items-center gap-3 flex-wrap text-sm text-hm-muted;
+  }
+
+  /* ════════════════════════════════════════
+     STATUS BADGES
+  ════════════════════════════════════════ */
+
+  .status-recruiting  { @apply bg-hm-green-light text-hm-green border border-hm-green-light; }
+  .status-almost-full { @apply bg-hm-yellow-light text-hm-yellow-dark border border-hm-yellow; }
+  .status-full        { @apply bg-hm-coral-light text-hm-coral-dark border border-hm-coral; }
+  .status-closed      { @apply bg-gray-100 text-hm-muted border border-hm-border; }
+
+  /* ════════════════════════════════════════
+     STEP NUMBER (create team, how-it-works)
+  ════════════════════════════════════════ */
+
+  .step-num {
+    @apply w-7 h-7 rounded-full bg-hm-green text-white
+           flex items-center justify-center
+           text-xs font-bold leading-none flex-shrink-0;
+  }
+
+  /* ════════════════════════════════════════
+     DIVIDER
+  ════════════════════════════════════════ */
+
+  .divider {
+    @apply border-t border-hm-border;
+  }
+
+  /* ════════════════════════════════════════
+     EMPTY STATE
+  ════════════════════════════════════════ */
+
+  .empty-state {
+    @apply text-center py-12 px-4;
+  }
+
+  /* ════════════════════════════════════════
+     LANDING-SPECIFIC
+  ════════════════════════════════════════ */
+
+  /* Yellow underline accent on hero heading words */
+  .text-highlight {
+    @apply relative inline-block;
+  }
+
+  .text-highlight::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background-color: #F4D35E;
+    opacity: 0.5;
+    border-radius: 2px;
+    z-index: -1;
+  }
+
+  /* Section number marker */
+  .section-num {
+    @apply text-xs font-bold tracking-widest text-hm-green uppercase;
+  }
+}
+
+/* ── Keyframes for landing animations ── */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-float {
+  animation: float-slow 4s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-slow 4s ease-in-out 1s infinite;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out both;
+}
+
+.animate-fade-up-delay-1 {
+  animation: fade-up 0.5s ease-out 0.1s both;
+}
+
+.animate-fade-up-delay-2 {
+  animation: fade-up 0.5s ease-out 0.2s both;
+}
+
+.animate-fade-up-delay-3 {
+  animation: fade-up 0.5s ease-out 0.3s both;
 }

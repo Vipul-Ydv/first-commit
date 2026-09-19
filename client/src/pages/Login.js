@@ -1,102 +1,124 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import toast from 'react-hot-toast';
-import { HiMail, HiLockClosed, HiEye, HiEyeOff } from 'react-icons/hi';
 import * as api from '../api';
+import toast from 'react-hot-toast';
+import { HiEye, HiEyeOff } from 'react-icons/hi';
 
-function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+export default function Login() {
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]           = useState(false);
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
 
-  const submit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { user } = await login(email, password);
-      toast.success(`Welcome back, ${user.name}`);
-      // Straight to the profile if it is not usable for matching yet.
-      const ready = user.name && user.skills?.length && (user.collegeName || user.organizationName);
-      navigate(ready ? '/choose' : '/profile');
-    } catch (err) {
-      toast.error(api.readError(err));
+      await login(email, password);
+      toast.success('Welcome back!');
+      navigate('/dashboard');
+    } catch (error) {
+      toast.error(api.readError(error));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link to="/" className="flex justify-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center">
-            <span className="text-white font-bold text-3xl">H</span>
-          </div>
-        </Link>
-        <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">Sign in to HackMatch</h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          New here?{' '}
-          <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500">
-            Create an account
-          </Link>
-        </p>
-      </div>
+    <AuthShell
+      heading="Sign in to HackMatch"
+      sub={<>Don't have an account? <Link to="/register" className="text-primary-600 hover:text-primary-700 font-medium">Create one</Link></>}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Field label="Email">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="input-field"
+            placeholder="you@college.edu"
+            autoComplete="email"
+            required
+          />
+        </Field>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="card">
-          <form className="space-y-5" onSubmit={submit}>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                  <HiMail />
-                </span>
-                <input
-                  type="email"
-                  required
-                  className="input-field pl-10"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                  <HiLockClosed />
-                </span>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  className="input-field pl-10 pr-10"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400"
-                >
-                  {showPassword ? <HiEyeOff /> : <HiEye />}
-                </button>
-              </div>
-            </div>
-
-            <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
-              {loading ? 'Signing in…' : 'Sign in'}
+        <Field label="Password">
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="input-field pr-10"
+              placeholder="••••••••"
+              autoComplete="current-password"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              {showPassword ? <HiEyeOff className="h-4 w-4" /> : <HiEye className="h-4 w-4" />}
             </button>
-          </form>
+          </div>
+        </Field>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn-primary w-full justify-center mt-2"
+        >
+          {loading
+            ? <><Spinner /> Signing in…</>
+            : 'Sign in'}
+        </button>
+      </form>
+    </AuthShell>
+  );
+}
+
+/* ── Shared auth-page primitives ── */
+
+export function AuthShell({ heading, sub, children }) {
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 px-4">
+      <div className="w-full max-w-sm mx-auto">
+        {/* Logo */}
+        <Link to="/" className="flex items-center justify-center gap-2 mb-8">
+          <div className="w-7 h-7 bg-primary-600 rounded flex items-center justify-center">
+            <span className="text-white font-bold text-sm leading-none">H</span>
+          </div>
+          <span className="text-base font-bold text-gray-900 tracking-tight">HackMatch</span>
+        </Link>
+
+        {/* Heading */}
+        <h1 className="text-2xl font-bold text-gray-900 text-center mb-1">{heading}</h1>
+        {sub && <p className="text-sm text-gray-500 text-center mb-6">{sub}</p>}
+
+        {/* Card */}
+        <div className="card">
+          {children}
         </div>
       </div>
     </div>
   );
 }
 
-export default Login;
+export function Field({ label, hint, children }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
+      {children}
+      {hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>}
+    </div>
+  );
+}
+
+export function Spinner() {
+  return (
+    <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+  );
+}
