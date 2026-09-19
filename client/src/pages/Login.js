@@ -88,7 +88,10 @@ export function AuthShell({ heading, sub, children }) {
       <div className="w-full max-w-sm mx-auto">
         {/* Logo */}
         <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-7 h-7 bg-primary-600 rounded flex items-center justify-center">
+          {/* Same treatment as the navbar logo - bg-hm-green and rounded-md.
+              This was still bg-primary-600 from the old blue palette, so the
+              mark was blue on sign-in and green everywhere else. */}
+          <div className="w-7 h-7 bg-hm-green rounded-md flex items-center justify-center">
             <span className="text-white font-bold text-sm leading-none">H</span>
           </div>
           <span className="text-base font-bold text-gray-900 tracking-tight">HackMatch</span>

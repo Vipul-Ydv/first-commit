@@ -222,6 +222,46 @@ function makePdf(lines) {
     assert.strictEqual(ownsKey('competitions/user_A/uuid/d.pptx', null), false);
   });
 
+  /* ------------------ comprehend entity selection --------------------- */
+  /* Offline: exercises the merge logic, not the AWS call. This is where the
+     bug was - a partner org further down the page scored higher than the
+     actual title and became the competition name. */
+
+  const { best } = require('./comprehend');
+
+  const NEWLINE = String.fromCharCode(10);
+
+  const ENTITIES = [
+    { Type: 'EVENT', Text: 'AI Innovation Challenge 2026', Score: 0.77, BeginOffset: 0 },
+    { Type: 'ORGANIZATION', Text: 'BTKIT', Score: 0.99, BeginOffset: 45 },
+    // Comprehend really does return entities that run across a line break.
+    { Type: 'EVENT', Text: ['Bharat Builds Tour', 'Open'].join(NEWLINE), Score: 0.99, BeginOffset: 80 },
+    { Type: 'ORGANIZATION', Text: 'x', Score: 0.99, BeginOffset: 200 },
+    { Type: 'EVENT', Text: 'Low Confidence Event', Score: 0.4, BeginOffset: 5 },
+  ];
+
+  check('the title wins on position, not on model confidence', () => {
+    assert.strictEqual(best(ENTITIES, 'EVENT', { pick: 'earliest' }), 'AI Innovation Challenge 2026');
+  });
+  check('by score alone the wrong entity would win', () => {
+    assert.strictEqual(best(ENTITIES, 'EVENT'), 'Bharat Builds Tour');
+  });
+  check('entities spanning a line break are trimmed', () => {
+    assert.ok(!best(ENTITIES, 'EVENT').includes('Open'));
+  });
+  check('low-confidence entities are ignored', () => {
+    assert.notStrictEqual(best(ENTITIES, 'EVENT', { pick: 'earliest' }), 'Low Confidence Event');
+  });
+  check('one-character entities are ignored', () => {
+    assert.strictEqual(best(ENTITIES, 'ORGANIZATION'), 'BTKIT');
+  });
+  check('the organizer is never a copy of the name', () => {
+    assert.strictEqual(best(ENTITIES, 'ORGANIZATION', { exclude: ['BTKIT'] }), null);
+  });
+  check('a type with no entities returns null', () => {
+    assert.strictEqual(best(ENTITIES, 'PERSON'), null);
+  });
+
   console.log('\ndocument extraction');
   results.forEach((l) => console.log(l));
   console.log(`\n${passed} passed${process.exitCode ? ', SOME FAILED' : ', all green'}\n`);
