@@ -3,13 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import * as api from '../api';
 import toast from 'react-hot-toast';
-import { HiMail, HiLockClosed, HiUser, HiAcademicCap, HiEye, HiEyeOff } from 'react-icons/hi';
+import { HiMail, HiLockClosed, HiUser, HiAcademicCap, HiBriefcase, HiEye, HiEyeOff } from 'react-icons/hi';
 
 function Register() {
+  const [userType, setUserType] = useState('student');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    college: '',
+    collegeName: '',
+    organizationName: '',
     password: '',
     confirmPassword: ''
   });
@@ -24,23 +26,34 @@ function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
 
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (formData.password.length < 8) {
+      toast.error('Password must be at least 8 characters');
       return;
     }
 
     setLoading(true);
-    
+
     try {
-      await register(formData.email, formData.password, formData.name, formData.college);
-      toast.success('Account created! Please verify your email.');
-      navigate('/dashboard');
+      // Pass a single object — AuthContext.register(body) expects one argument
+      const body = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        userType,
+        ...(userType === 'student'
+          ? { collegeName: formData.collegeName }
+          : { organizationName: formData.organizationName }),
+      };
+
+      await register(body);
+      toast.success('Account created!');
+      navigate('/profile');
     } catch (error) {
       toast.error(api.readError(error));
     } finally {
@@ -60,13 +73,46 @@ function Register() {
           Create your account
         </h2>
         <p className="mt-2 text-center text-gray-600">
-          Join thousands of students building together
+          Join the HackMatch community
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="card">
           <form onSubmit={handleSubmit} className="space-y-5">
+
+            {/* Student / Professional toggle */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                I am a...
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setUserType('student')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border font-medium transition-colors duration-150 ${
+                    userType === 'student'
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-primary-400'
+                  }`}
+                >
+                  <HiAcademicCap className="h-4 w-4" /> Student
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserType('professional')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border font-medium transition-colors duration-150 ${
+                    userType === 'professional'
+                      ? 'bg-primary-600 text-white border-primary-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-primary-400'
+                  }`}
+                >
+                  <HiBriefcase className="h-4 w-4" /> Professional
+                </button>
+              </div>
+            </div>
+
+            {/* Full name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Full Name
@@ -85,9 +131,10 @@ function Register() {
               </div>
             </div>
 
+            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                College Email
+                {userType === 'student' ? 'College Email' : 'Email'}
               </label>
               <div className="relative">
                 <HiMail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -97,33 +144,57 @@ function Register() {
                   value={formData.email}
                   onChange={handleChange}
                   className="input-field pl-10"
-                  placeholder="you@college.edu"
+                  placeholder={userType === 'student' ? 'you@college.edu' : 'you@example.com'}
                   required
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Use your college email (.edu, .ac.in) for verification
-              </p>
+              {userType === 'student' && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Use your college email (.edu, .ac.in) for verification
+                </p>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                College / University
-              </label>
-              <div className="relative">
-                <HiAcademicCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  name="college"
-                  value={formData.college}
-                  onChange={handleChange}
-                  className="input-field pl-10"
-                  placeholder="IIT Delhi"
-                  required
-                />
+            {/* Institution — conditional on userType */}
+            {userType === 'student' ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  College / University
+                </label>
+                <div className="relative">
+                  <HiAcademicCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    name="collegeName"
+                    value={formData.collegeName}
+                    onChange={handleChange}
+                    className="input-field pl-10"
+                    placeholder="e.g. BTKIT, IIT Delhi"
+                    required
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Organisation
+                </label>
+                <div className="relative">
+                  <HiBriefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    name="organizationName"
+                    value={formData.organizationName}
+                    onChange={handleChange}
+                    className="input-field pl-10"
+                    placeholder="e.g. Google, Startup Inc."
+                    required
+                  />
+                </div>
+              </div>
+            )}
 
+            {/* Password */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Password
@@ -149,6 +220,7 @@ function Register() {
               </div>
             </div>
 
+            {/* Confirm password */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Confirm Password
