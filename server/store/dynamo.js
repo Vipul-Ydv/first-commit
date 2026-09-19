@@ -56,7 +56,9 @@ function collection(doc, name) {
     const rows = [];
     let ExclusiveStartKey;
     do {
-      const page = await doc.send(new ScanCommand({ TableName: table, ExclusiveStartKey }));
+      const page = await doc.send(
+        new ScanCommand({ TableName: table, ExclusiveStartKey, ConsistentRead: true })
+      );
       rows.push(...(page.Items || []));
       ExclusiveStartKey = page.LastEvaluatedKey;
     } while (ExclusiveStartKey);
@@ -65,8 +67,11 @@ function collection(doc, name) {
 
   return {
     async get(id) {
+      // Strongly consistent: routes read a record immediately after writing it
+      // (a profile is created, then a team is created against it). An
+      // eventually-consistent read intermittently 404s on a row that exists.
       const { Item } = await doc.send(
-        new GetCommand({ TableName: table, Key: { [idField]: id } })
+        new GetCommand({ TableName: table, Key: { [idField]: id }, ConsistentRead: true })
       );
       return Item || null;
     },

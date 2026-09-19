@@ -11,6 +11,7 @@ const express = require('express');
 const cors = require('cors');
 
 const { errorMiddleware } = require('./lib/errors');
+const { assertAuthConfig } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profiles');
 const competitionRoutes = require('./routes/competitions');
@@ -19,6 +20,9 @@ const { teamActionRoutes, joinRequestRoutes, invitationRoutes } = require('./rou
 
 function createApp({ store }) {
   if (!store) throw new Error('createApp requires a store');
+
+  // Fail fast on a misconfigured deployment instead of 401-ing every request.
+  assertAuthConfig();
 
   const app = express();
 

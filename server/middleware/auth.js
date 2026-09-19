@@ -40,12 +40,30 @@ function signingSecret() {
   return 'dev-secret';
 }
 
+/**
+ * Resolve the secret OUTSIDE the token try/catch below. Inside it, the
+ * production missing-secret error was swallowed and turned into a plain 401,
+ * so a misconfigured Lambda booted, reported healthy, and silently rejected
+ * every login instead of failing fast.
+ */
 function verifyLocal(token) {
+  const secret = signingSecret(); // throws in production if unset - deliberate
   try {
-    const claims = jwt.verify(token, signingSecret());
+    const claims = jwt.verify(token, secret);
     return { userId: claims.userId || claims.sub, claims };
   } catch {
     return null;
+  }
+}
+
+/**
+ * Fail at startup rather than per-request. Called from app creation so a
+ * misconfigured deployment never reaches a health check.
+ */
+function assertAuthConfig() {
+  signingSecret();
+  if (provider() === 'cognito' && !(process.env.COGNITO_USER_POOL_ID && process.env.COGNITO_CLIENT_ID)) {
+    throw new Error('AUTH_PROVIDER=cognito but COGNITO_USER_POOL_ID / COGNITO_CLIENT_ID are not set');
   }
 }
 
@@ -78,6 +96,12 @@ const requireAuth = route(async (req, res, next) => {
 
   if (!identity?.userId) fail('UNAUTHENTICATED');
 
+  // Spec A.1: email must be verified before full access. Cognito tells us;
+  // without this an id token with email_verified=false reached every route.
+  if (provider() === 'cognito' && identity.emailVerified === false) {
+    fail('EMAIL_NOT_VERIFIED');
+  }
+
   req.auth = identity;
   return next();
 });
@@ -90,4 +114,4 @@ function issueToken(userId) {
 /** True when this app owns registration and login itself. */
 const localAuthEnabled = () => provider() === 'local';
 
-module.exports = { requireAuth, issueToken, localAuthEnabled };
+module.exports = { requireAuth, issueToken, localAuthEnabled, assertAuthConfig };

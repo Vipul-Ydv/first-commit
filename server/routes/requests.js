@@ -30,7 +30,22 @@ function assertHasRoom(team) {
   if ((team.memberIds || []).length >= team.maxMembers) fail('TEAM_FULL');
 }
 
-/** Shared by both accept paths: re-validate, then add the member. */
+/**
+ * Shared by both accept paths: re-validate, then add the member.
+ *
+ * KNOWN LIMITATION - read-check-write, not atomic.
+ *
+ * Two accepts landing in different Lambda containers at the same instant can
+ * both read the same memberIds, both pass the capacity check, and the second
+ * write overwrites the first. A team could end up one over `maxMembers`, or a
+ * member could be dropped.
+ *
+ * Fixing it properly needs an atomic list_append with a size condition in
+ * DynamoDB, plus an equivalent in the memory store - a store-interface change.
+ * Deliberately not done before the deadline: it needs two humans to click
+ * accept in the same few hundred milliseconds on the same team, which does not
+ * happen at demo scale. Written down rather than quietly ignored.
+ */
 async function admit(store, team, userId) {
   const fresh = await store.teams.get(team.teamId);
   assertHasRoom(fresh);

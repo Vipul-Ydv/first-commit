@@ -26,8 +26,9 @@ has real data to render. `SEED=false` starts empty.
 
 ## 2. Auth - two options, pick one
 
-The backend supports **both**. One environment variable switches it, and the
-API is identical either way.
+The backend supports **both**. The API is identical either way, but read
+"Switching is not reversible mid-demo" below before assuming you can flip
+between them freely.
 
 ### Option A - local login (works right now, zero setup)
 
@@ -87,8 +88,31 @@ api.setAuthToken(session.tokens.idToken.toString());
 **Use the ID token, not the access token.** The backend verifies the ID token
 because it carries email and name.
 
-After `setAuthToken`, every other call in `src/api` works exactly as before.
-Only signup and login change.
+### What else changes (do not skip this)
+
+Switching to Cognito is more than swapping two calls. `AuthContext` currently
+stores `hackmatch_token` in localStorage and restores the session by calling
+`/auth/me` on page load. With Cognito:
+
+- **Session restore** comes from `fetchAuthSession()`, not localStorage and not
+  `/auth/me`. Rewrite the `useEffect` in `AuthContext` accordingly.
+- **Tokens expire.** Call `fetchAuthSession()` before API calls (or on 401 and
+  retry) and re-run `setAuthToken`. The local token lasts 7 days and never
+  needed this.
+- **A Cognito user has no profile yet.** Cognito only knows email and name -
+  there is no record in our database until `POST /profiles` runs. After first
+  login, send the user straight to `/profile`, not `/choose`.
+- **`logout`** must call Amplify's `signOut()`, not just clear localStorage.
+
+Every other call in `src/api` is unchanged - they all just need a valid token
+in the header.
+
+### Switching is not reversible mid-demo
+
+Cognito user ids are different from the `user_...` ids in the seeded data. When
+Vipul flips the backend to Cognito the seeded accounts stop being reachable and
+the database is reseeded. Agree on the switch together - do not assume you can
+flip back and forth.
 
 ### Which to build
 
@@ -151,6 +175,8 @@ Set it to `true` if you ever want to work without the server running.
 | `Navbar.js` | Done - dead Events/Map links removed |
 | `App.js` | Done - routing for both directions |
 | `AuthContext.js` | Done - wired to real auth |
+| `Login.js` | **Done** - wired to `useAuth().login` |
+| `Register.js` | **Done** - includes the Student / Professional toggle |
 
 Use `Choose.js` and `CreateTeam.js` as your reference for calling the API and
 handling loading/error states.
@@ -159,8 +185,6 @@ handling loading/error states.
 
 | Page | Needs |
 |---|---|
-| `Login.js` | Rewire to `useAuth().login` - still calls old axios endpoints |
-| `Register.js` | Rewire to `useAuth().register`; ask Student vs Professional |
 | `Profile.js` | Rewire + new fields: `userType`, `collegeName`/`organizationName`, `skills`, `github`, `linkedin`, `interests`, `competitionPreferences`, `availability`, `rolePreference` |
 | `Teams.js` | Two sections: recommended teams (`getRecommendedTeams`) and browse all (`browseTeams`) |
 | `TeamDetail.js` | Gap display, member list, and the two actions - request to join, or (if leader) view candidates and invite |

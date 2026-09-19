@@ -7,6 +7,20 @@
  *
  * We use the ID token rather than the access token because it carries the
  * user's email and name, which we want when a profile is first created.
+ *
+ * IMPORTANT - switching providers is NOT purely a flag change.
+ *
+ * Cognito's `sub` is a different id namespace from the `user_...` ids used by
+ * the seeded demo data and by every existing team, invitation and join
+ * request. Flipping AUTH_PROVIDER to cognito therefore:
+ *
+ *   - orphans accounts created under local auth
+ *   - makes the seeded users unreachable, since nobody can authenticate AS
+ *     `user_001` through Cognito
+ *
+ * So a switch means re-seeding, and re-running the demo from a clean slate.
+ * Anyone reading "one environment variable" elsewhere in this repo should read
+ * it as "one variable plus a reseed", not a live migration.
  */
 
 let verifier;
