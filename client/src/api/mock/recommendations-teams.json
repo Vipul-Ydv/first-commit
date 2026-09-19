@@ -1,0 +1,35 @@
+{
+  "userId": "user_456",
+  "recommendations": [
+    {
+      "teamId": "team_123",
+      "name": "VisionX",
+      "competitionName": "AI Innovation Challenge",
+      "deadline": "2026-09-30T23:59:00Z",
+      "memberCount": 2,
+      "maxMembers": 4,
+      "status": "recruiting",
+      "requiredSkills": ["Machine Learning", "AWS", "UI/UX"],
+      "matchedSkills": ["Machine Learning", "AWS"],
+      "matchedCount": 2,
+      "requiredCount": 3,
+      "matchReason": "You match 2 of the team's 3 requested skills, and you've marked this competition as a preference.",
+      "competitionPreferenceMatch": true
+    },
+    {
+      "teamId": "team_124",
+      "name": "DataDock",
+      "competitionName": "AI Innovation Challenge",
+      "deadline": "2026-09-30T23:59:00Z",
+      "memberCount": 3,
+      "maxMembers": 4,
+      "status": "almost_full",
+      "requiredSkills": ["Python", "Django"],
+      "matchedSkills": ["Python"],
+      "matchedCount": 1,
+      "requiredCount": 2,
+      "matchReason": "You match 1 of the team's 2 requested skills.",
+      "competitionPreferenceMatch": true
+    }
+  ]
+}

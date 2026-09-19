@@ -1,0 +1,33 @@
+{
+  "teams": [
+    {
+      "teamId": "team_123",
+      "name": "VisionX",
+      "competitionName": "AI Innovation Challenge",
+      "deadline": "2026-09-30T23:59:00Z",
+      "memberCount": 2,
+      "maxMembers": 4,
+      "status": "recruiting",
+      "requiredSkills": [
+        { "skill": "Machine Learning", "priority": "high" },
+        { "skill": "AWS", "priority": "high" },
+        { "skill": "UI/UX", "priority": "medium" }
+      ],
+      "remaining": ["Machine Learning", "UI/UX"]
+    },
+    {
+      "teamId": "team_124",
+      "name": "DataDock",
+      "competitionName": "AI Innovation Challenge",
+      "deadline": "2026-09-30T23:59:00Z",
+      "memberCount": 3,
+      "maxMembers": 4,
+      "status": "almost_full",
+      "requiredSkills": [
+        { "skill": "Python", "priority": "high" },
+        { "skill": "Django", "priority": "medium" }
+      ],
+      "remaining": ["Django"]
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "teamId": "team_123",
+  "remainingGap": ["Machine Learning", "UI/UX"],
+  "recommendations": [
+    {
+      "userId": "user_456",
+      "name": "Aisha Khan",
+      "collegeName": "BTKIT",
+      "skills": ["Python", "Machine Learning", "AWS"],
+      "matchedSkills": ["Machine Learning", "AWS"],
+      "missingSkillsFilled": ["Machine Learning"],
+      "matchReason": "Fills the team's Machine Learning requirement.",
+      "competitionPreferenceMatch": true,
+      "availability": "weekends",
+      "rolePreference": ["ML Engineer"],
+      "github": "https://github.com/aishakhan",
+      "linkedin": "https://linkedin.com/in/aishakhan"
+    },
+    {
+      "userId": "user_457",
+      "name": "Neha Verma",
+      "collegeName": "BTKIT",
+      "skills": ["UI/UX", "Figma"],
+      "matchedSkills": ["UI/UX"],
+      "missingSkillsFilled": ["UI/UX"],
+      "matchReason": "Fills the team's UI/UX requirement.",
+      "competitionPreferenceMatch": false,
+      "availability": "weekdays",
+      "rolePreference": ["Designer"],
+      "github": "https://github.com/nehaverma",
+      "linkedin": "https://linkedin.com/in/nehaverma"
+    },
+    {
+      "userId": "user_458",
+      "name": "Karan Mehta",
+      "collegeName": "BTKIT",
+      "skills": ["UI/UX", "Java"],
+      "matchedSkills": ["UI/UX"],
+      "missingSkillsFilled": ["UI/UX"],
+      "matchReason": "Fills the team's UI/UX requirement.",
+      "competitionPreferenceMatch": false,
+      "availability": "evenings only",
+      "rolePreference": ["Frontend Developer"],
+      "github": "https://github.com/karanmehta",
+      "linkedin": "https://linkedin.com/in/karanmehta"
+    }
+  ]
+}

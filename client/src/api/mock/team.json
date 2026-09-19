@@ -1,0 +1,48 @@
+{
+  "teamId": "team_123",
+  "name": "VisionX",
+  "leaderId": "user_001",
+  "maxMembers": 4,
+  "status": "recruiting",
+  "competition": {
+    "competitionId": "competition_123",
+    "name": "AI Innovation Challenge",
+    "organizer": "Example Organization",
+    "deadline": "2026-09-30T23:59:00Z",
+    "teamSizeMin": 2,
+    "teamSizeMax": 4,
+    "eligibility": {
+      "studentOnly": true,
+      "institutionRestriction": true,
+      "allowedInstitutions": ["BTKIT"]
+    }
+  },
+  "requiredSkills": [
+    { "skill": "Machine Learning", "priority": "high" },
+    { "skill": "AWS", "priority": "high" },
+    { "skill": "UI/UX", "priority": "medium" }
+  ],
+  "members": [
+    {
+      "userId": "user_001",
+      "name": "Vipul Yadav",
+      "collegeName": "BTKIT",
+      "skills": ["AWS", "Node.js"],
+      "isLeader": true
+    },
+    {
+      "userId": "user_002",
+      "name": "Rahul Sharma",
+      "collegeName": "BTKIT",
+      "skills": ["Python"],
+      "isLeader": false
+    }
+  ],
+  "skillGap": {
+    "covered": ["AWS"],
+    "remaining": ["Machine Learning", "UI/UX"],
+    "coveredCount": 1,
+    "requiredCount": 3,
+    "coveragePercent": 33
+  }
+}

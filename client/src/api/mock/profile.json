@@ -1,0 +1,21 @@
+{
+  "userId": "user_456",
+  "name": "Aisha Khan",
+  "userType": "student",
+  "collegeName": "BTKIT",
+  "organizationName": null,
+  "email": "aisha@btkit.ac.in",
+  "emailVerified": true,
+  "skills": ["Python", "Machine Learning", "AWS"],
+  "github": "https://github.com/aishakhan",
+  "linkedin": "https://linkedin.com/in/aishakhan",
+  "interests": ["AI", "Cloud"],
+  "competitionPreferences": ["competition_123"],
+  "availability": "weekends",
+  "rolePreference": ["ML Engineer"],
+  "portfolio": null,
+  "projects": [],
+  "experience": [],
+  "gender": null,
+  "createdAt": "2026-09-19T06:30:00Z"
+}

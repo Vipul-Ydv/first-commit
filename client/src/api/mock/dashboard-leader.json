@@ -1,0 +1,43 @@
+{
+  "teamId": "team_123",
+  "name": "VisionX",
+  "status": "recruiting",
+  "memberCount": 2,
+  "maxMembers": 4,
+  "skillGap": {
+    "covered": ["AWS"],
+    "remaining": ["Machine Learning", "UI/UX"],
+    "coveredCount": 1,
+    "requiredCount": 3,
+    "coveragePercent": 33
+  },
+  "pendingJoinRequests": [
+    {
+      "requestId": "req_010",
+      "userId": "user_459",
+      "name": "Sneha Rao",
+      "collegeName": "BTKIT",
+      "skills": ["UI/UX", "Illustrator"],
+      "matchedSkills": ["UI/UX"],
+      "matchReason": "Fills the team's UI/UX requirement.",
+      "status": "pending",
+      "createdAt": "2026-09-19T09:40:00Z"
+    }
+  ],
+  "sentInvitations": [
+    {
+      "invitationId": "inv_001",
+      "userId": "user_456",
+      "name": "Aisha Khan",
+      "status": "pending",
+      "createdAt": "2026-09-19T09:05:00Z"
+    },
+    {
+      "invitationId": "inv_002",
+      "userId": "user_458",
+      "name": "Karan Mehta",
+      "status": "declined",
+      "createdAt": "2026-09-18T19:20:00Z"
+    }
+  ]
+}

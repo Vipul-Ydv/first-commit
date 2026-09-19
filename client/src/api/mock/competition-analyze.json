@@ -1,0 +1,18 @@
+{
+  "sourceType": "pasted_text",
+  "needsReview": true,
+  "unextracted": ["teamSizeMin"],
+  "message": "Unable to automatically extract all competition details. Please review and enter the missing information.",
+  "fields": {
+    "name": "AI Innovation Challenge",
+    "organizer": "Example Organization",
+    "deadline": "2026-09-30T23:59:00Z",
+    "teamSizeMin": null,
+    "teamSizeMax": 4,
+    "eligibility": {
+      "studentOnly": true,
+      "institutionRestriction": true,
+      "allowedInstitutions": ["BTKIT"]
+    }
+  }
+}

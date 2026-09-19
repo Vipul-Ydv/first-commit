@@ -1,0 +1,24 @@
+{
+  "_comment": "Reference only - not imported by index.js. Every error response from the API uses this exact shape. Dev 2 designs a UI state for each code. Dev 1 returns exactly these codes.",
+  "shape": {
+    "error": {
+      "code": "TEAM_FULL",
+      "message": "This team is already full."
+    }
+  },
+  "codes": [
+    { "code": "UNAUTHENTICATED", "http": 401, "message": "Please log in again.", "whenItHappens": "Missing or expired JWT" },
+    { "code": "EMAIL_NOT_VERIFIED", "http": 403, "message": "Please verify your email first.", "whenItHappens": "Cognito account exists but email not confirmed" },
+    { "code": "NOT_LEADER", "http": 403, "message": "Only the team leader can do this.", "whenItHappens": "Non-leader tries to edit team, invite, or approve/reject" },
+    { "code": "NOT_OWNER", "http": 403, "message": "You can only edit your own profile.", "whenItHappens": "Profile PUT by a different user" },
+    { "code": "NOT_INVITEE", "http": 403, "message": "This invitation is not for you.", "whenItHappens": "Accepting someone else's invitation" },
+    { "code": "NOT_ELIGIBLE", "http": 403, "message": "You are not eligible for this competition.", "whenItHappens": "Fails studentOnly or institution restriction" },
+    { "code": "TEAM_FULL", "http": 409, "message": "This team is already full.", "whenItHappens": "Checked when SENDING and again when ACCEPTING" },
+    { "code": "ALREADY_MEMBER", "http": 409, "message": "You are already in this team.", "whenItHappens": "Member requests to join own team" },
+    { "code": "DUPLICATE_REQUEST", "http": 409, "message": "You already have a pending request to this team.", "whenItHappens": "Second pending join request to same team" },
+    { "code": "DUPLICATE_INVITATION", "http": 409, "message": "This person has already been invited.", "whenItHappens": "Second pending invite to same person for same team" },
+    { "code": "VALIDATION_FAILED", "http": 400, "message": "Please check the highlighted fields.", "whenItHappens": "Bad input - missing field, bad enum, string too long" },
+    { "code": "NOT_FOUND", "http": 404, "message": "Not found.", "whenItHappens": "Unknown teamId / userId / requestId" }
+  ],
+  "note": "Extraction failure is NOT an error. POST /competitions/analyze returns HTTP 200 with needsReview:true and a list of unextracted fields. See competition-analyze.json."
+}
