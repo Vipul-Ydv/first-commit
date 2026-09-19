@@ -47,6 +47,18 @@ module.exports = function competitionRoutes({ store }) {
     let kind = sourceType || 'pasted_text';
 
     if (documentKey) {
+      // Checked before the try, so a misconfigured deployment says so instead
+      // of reporting the upload as missing.
+      if (!storage.enabled()) {
+        fail('VALIDATION_FAILED', 'Document upload is not configured on this deployment.');
+      }
+      // Keys are generated server-side under competitions/<userId>/. The Lambda
+      // role can read the whole prefix, so without this anyone holding someone
+      // else's key could have us fetch and extract their private document.
+      if (!storage.ownsKey(documentKey, req.auth.userId)) {
+        fail('NOT_FOUND', 'That upload could not be found. Try uploading again.');
+      }
+
       let buffer;
       try {
         buffer = await storage.readObject(documentKey);
@@ -87,14 +99,23 @@ module.exports = function competitionRoutes({ store }) {
       fail('VALIDATION_FAILED', 'Maximum team size is required.');
     }
 
+    const requestedKey = req.body?.documentKey || null;
+    if (requestedKey && !storage.ownsKey(requestedKey, req.auth.userId)) {
+      fail('VALIDATION_FAILED', 'That document does not belong to you.');
+    }
+    const attachedKey = requestedKey;
+
     const competition = {
       competitionId: `competition_${randomUUID().slice(0, 8)}`,
       ...validated.fields,
       sourceType: validated.sourceType,
       // Keep the uploaded brief with the competition so everyone who later
       // sees the team can open the same document the leader worked from.
-      documentKey: req.body?.documentKey || null,
-      documentName: req.body?.documentKey ? storage.filenameFromKey(req.body.documentKey) : null,
+      // Only the caller's own upload may be attached - otherwise a competition
+      // could be pointed at someone else's private file, which the download
+      // route would then hand to anyone who can see the team.
+      documentKey: attachedKey,
+      documentName: attachedKey ? storage.filenameFromKey(attachedKey) : null,
       createdBy: req.auth.userId,
       createdAt: new Date().toISOString(),
     };

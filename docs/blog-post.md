@@ -52,8 +52,9 @@ was the best decision we made.
 retention, API Gateway throttled at 100 rps. Idle cost is effectively zero, and
 a single bad client can't run up the bill.
 
-**A store interface from day one.** Every collection exposes the same six async
-methods. We started with an in-memory implementation so the whole API could be
+**A store interface from day one.** Every collection exposes the same small set
+of async methods - `get`, `put`, `update`, `list`, `find`, `findOne`, `remove`,
+`count`. We started with an in-memory implementation so the whole API could be
 built and tested with no AWS account at all, then added DynamoDB behind the same
 interface. Routes and business logic never changed.
 
@@ -219,7 +220,7 @@ hours of optionality to an assumption I never spent thirty seconds checking.
 ## Where it ended up
 
 Live on Amplify, API Gateway, Lambda, DynamoDB, Cognito, IAM, S3 and CloudWatch.
-87 tests. Both directions of the matching loop working end to end against the
+108 tests. Both directions of the matching loop working end to end against the
 deployed API.
 
 And an AI feature shipped without the AI — which, given the weekend, I'm

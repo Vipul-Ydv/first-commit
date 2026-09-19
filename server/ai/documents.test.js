@@ -37,6 +37,46 @@ const docxBody = (paragraphs) => `<?xml version="1.0" encoding="UTF-8"?>
   .map((t) => `<w:p><w:r><w:t xml:space="preserve">${t}</w:t></w:r></w:p>`)
   .join('')}</w:body></w:document>`;
 
+/**
+ * A real, structurally valid PDF with a text layer - byte offsets in the xref
+ * table computed rather than faked, so the parser accepts it.
+ *
+ * Worth the effort: the PDF path shipped broken because nothing here exercised
+ * it. pdf-parse v2 exports a class, and the v1 call shape threw on every
+ * upload.
+ */
+function makePdf(lines) {
+  const escape = (s) => s.replace(/([()\\])/g, '\\$1');
+  const content =
+    'BT /F1 12 Tf 50 750 Td 14 TL ' +
+    lines.map((l) => `(${escape(l)}) Tj T*`).join(' ') +
+    ' ET';
+
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [];
+  objects.forEach((body, i) => {
+    offsets.push(pdf.length);
+    pdf += `${i + 1} 0 obj\n${body}\nendobj\n`;
+  });
+
+  const xrefAt = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.forEach((o) => {
+    pdf += `${String(o).padStart(10, '0')} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefAt}\n%%EOF`;
+
+  return Buffer.from(pdf, 'latin1');
+}
+
 (async () => {
   /* ------------------------------- pptx ------------------------------- */
 
@@ -104,6 +144,33 @@ const docxBody = (paragraphs) => `<?xml version="1.0" encoding="UTF-8"?>
     assert.strictEqual(fromDoc.fields.teamSizeMax, 5);
   });
 
+  /* -------------------------------- pdf ------------------------------- */
+
+  const pdfText = await textFromDocument(
+    makePdf([
+      'Quantum Cup 2026',
+      'Organised by: Acme Research',
+      'Teams of 2-3 members.',
+      'Deadline: 5 January 2027.',
+    ]),
+    'brief.pdf'
+  );
+
+  check('pdf: text comes out at all', () => {
+    // Regression: pdf-parse v2 exports a class. Calling the module directly,
+    // as v1 allowed, threw "pdfParse is not a function" on every upload - and
+    // no test exercised the PDF path, so it shipped broken.
+    assert.ok(pdfText.includes('Quantum Cup 2026'), JSON.stringify(pdfText));
+  });
+
+  const fromPdfDoc = await analyzeCompetition(pdfText, { sourceType: 'uploaded_document' });
+  check('pdf: fields extracted', () => {
+    assert.strictEqual(fromPdfDoc.fields.name, 'Quantum Cup 2026');
+    assert.strictEqual(fromPdfDoc.fields.teamSizeMin, 2);
+    assert.strictEqual(fromPdfDoc.fields.teamSizeMax, 3);
+    assert.strictEqual(fromPdfDoc.fields.deadline, '2027-01-05T23:59:00Z');
+  });
+
   /* ------------------------- plain text and guards -------------------- */
 
   check('txt passes straight through', async () => {});
@@ -130,6 +197,30 @@ const docxBody = (paragraphs) => `<?xml version="1.0" encoding="UTF-8"?>
     () => check('oversized file is rejected', () => assert.fail('should have thrown')),
     (e) => check('oversized file is rejected', () => assert.ok(/larger than/.test(e.message)))
   );
+
+  /* --------------------------- key ownership -------------------------- */
+  /* The Lambda role can read the whole competitions/ prefix, so the only thing
+     stopping one user's key being used to read another user's private document
+     is this check. Worth testing properly. */
+
+  const { ownsKey } = require('../lib/storage');
+
+  check('own key is accepted', () => {
+    assert.strictEqual(ownsKey('competitions/user_A/uuid/deck.pptx', 'user_A'), true);
+  });
+  check("another user's key is rejected", () => {
+    assert.strictEqual(ownsKey('competitions/user_B/uuid/deck.pptx', 'user_A'), false);
+  });
+  check('path traversal cannot satisfy the prefix', () => {
+    assert.strictEqual(ownsKey('competitions/user_A/../user_B/x.pdf', 'user_A'), false);
+  });
+  check('a key outside the prefix is rejected', () => {
+    assert.strictEqual(ownsKey('../../etc/passwd', 'user_A'), false);
+  });
+  check('missing key or user is rejected', () => {
+    assert.strictEqual(ownsKey(null, 'user_A'), false);
+    assert.strictEqual(ownsKey('competitions/user_A/uuid/d.pptx', null), false);
+  });
 
   console.log('\ndocument extraction');
   results.forEach((l) => console.log(l));

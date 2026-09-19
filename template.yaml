@@ -102,7 +102,14 @@ Resources:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamsTable }
         - DynamoDBCrudPolicy: { TableName: !Ref JoinRequestsTable }
         - DynamoDBCrudPolicy: { TableName: !Ref InvitationsTable }
-        - S3CrudPolicy: { BucketName: !Ref DocumentsBucket }
+        # Explicit Get/Put on the one prefix these routes use. S3CrudPolicy
+        # would also grant Delete and ListBucket, so a compromised function
+        # could enumerate or destroy every uploaded document - which is not
+        # what "least privilege" above is supposed to mean.
+        - Statement:
+            - Effect: Allow
+              Action: [s3:GetObject, s3:PutObject]
+              Resource: !Sub '${DocumentsBucket.Arn}/competitions/*'
         - Statement:
             - Effect: Allow
               Action: [bedrock:InvokeModel]

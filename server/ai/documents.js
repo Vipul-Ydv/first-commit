@@ -95,9 +95,19 @@ async function fromDocx(buffer) {
 }
 
 async function fromPdf(buffer) {
-  const pdfParse = require('pdf-parse');
-  const { text } = await pdfParse(buffer);
-  return String(text || '').replace(/\n{3,}/g, '\n\n').trim();
+  // pdf-parse v2 exports a class, not a callable function. The v1 shape
+  // (`require('pdf-parse')(buffer)`) throws "pdfParse is not a function" here,
+  // which would have broken every PDF upload.
+  const { PDFParse } = require('pdf-parse');
+
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const { text } = await parser.getText();
+    return String(text || '').replace(/\n{3,}/g, '\n\n').trim();
+  } finally {
+    // Releases the worker; without it Lambda containers leak between invocations.
+    await parser.destroy?.();
+  }
 }
 
 /**

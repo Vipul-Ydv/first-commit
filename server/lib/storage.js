@@ -103,11 +103,28 @@ async function readObject(key) {
 /** The original filename, recovered from the key we generated. */
 const filenameFromKey = (key) => String(key).split('/').pop();
 
+/**
+ * Does this key live in the caller's own namespace?
+ *
+ * The Lambda role can read the whole prefix, so without this check anyone who
+ * learned another user's key could have this API fetch that private object and
+ * run extraction on it. Keys are generated server-side and always start
+ * competitions/<userId>/, so ownership is checkable from the key alone.
+ */
+function ownsKey(key, userId) {
+  if (typeof key !== 'string' || !userId) return false;
+  // Reject traversal before comparing, so `competitions/me/../someone-else/x`
+  // cannot satisfy the prefix test.
+  if (key.includes('..')) return false;
+  return key.startsWith(`competitions/${userId}/`);
+}
+
 module.exports = {
   enabled,
   createUploadUrl,
   createDownloadUrl,
   readObject,
   filenameFromKey,
+  ownsKey,
   MAX_BYTES,
 };
