@@ -24,16 +24,103 @@ has real data to render. `SEED=false` starts empty.
 
 ---
 
-## 2. Auth works
+## 2. Auth - two options, pick one
 
-Real registration and login (bcrypt + JWT). No Cognito - the AWS account could
-not provision it, so this stands in.
+The backend supports **both**. The API is identical either way, but read
+"Switching is not reversible mid-demo" below before assuming you can flip
+between them freely.
 
-`AuthContext` is already wired. Use it:
+### Option A - local login (works right now, zero setup)
+
+`AuthContext` is already wired to it:
 
 ```jsx
 const { user, loading, login, register, logout, profileComplete } = useAuth();
 ```
+
+Nothing to install. Start here so you are never blocked.
+
+### Option B - Cognito (the AWS service, if there is time)
+
+Real user pool, email verification, password reset. Costs you an extra screen
+(the email confirmation code) and about 1.5 hours.
+
+```bash
+npm install aws-amplify
+```
+
+Configure once, in `src/index.js`:
+
+```jsx
+import { Amplify } from 'aws-amplify';
+
+Amplify.configure({
+  Auth: {
+    Cognito: {
+      userPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID,
+      userPoolClientId: process.env.REACT_APP_COGNITO_CLIENT_ID,
+    },
+  },
+});
+```
+
+The three values come from the `sam deploy` outputs - ask Vipul.
+
+Then the flow is three screens instead of two:
+
+```jsx
+import { signUp, confirmSignUp, signIn, fetchAuthSession } from 'aws-amplify/auth';
+
+// 1. Register
+await signUp({ username: email, password, options: { userAttributes: { name } } });
+
+// 2. NEW SCREEN - user types the 6-digit code from their email
+await confirmSignUp({ username: email, confirmationCode: code });
+
+// 3. Login
+await signIn({ username: email, password });
+
+// 4. Hand the token to our api layer - everything else is unchanged
+const session = await fetchAuthSession();
+api.setAuthToken(session.tokens.idToken.toString());
+```
+
+**Use the ID token, not the access token.** The backend verifies the ID token
+because it carries email and name.
+
+### What else changes (do not skip this)
+
+Switching to Cognito is more than swapping two calls. `AuthContext` currently
+stores `hackmatch_token` in localStorage and restores the session by calling
+`/auth/me` on page load. With Cognito:
+
+- **Session restore** comes from `fetchAuthSession()`, not localStorage and not
+  `/auth/me`. Rewrite the `useEffect` in `AuthContext` accordingly.
+- **Tokens expire.** Call `fetchAuthSession()` before API calls (or on 401 and
+  retry) and re-run `setAuthToken`. The local token lasts 7 days and never
+  needed this.
+- **A Cognito user has no profile yet.** Cognito only knows email and name -
+  there is no record in our database until `POST /profiles` runs. After first
+  login, send the user straight to `/profile`, not `/choose`.
+- **`logout`** must call Amplify's `signOut()`, not just clear localStorage.
+
+Every other call in `src/api` is unchanged - they all just need a valid token
+in the header.
+
+### Switching is not reversible mid-demo
+
+Cognito user ids are different from the `user_...` ids in the seeded data. When
+Vipul flips the backend to Cognito the seeded accounts stop being reachable and
+the database is reseeded. Agree on the switch together - do not assume you can
+flip back and forth.
+
+### Which to build
+
+Do the pages first with Option A. Switch to Cognito at the end if time allows -
+it only touches Login, Register and one new confirmation screen. If you run out
+of time, we ship Option A and nothing is wasted.
+
+---
 
 `profileComplete` is true once the user has a name, at least one skill, and a
 college or organization. Matching needs all three, so gate on it.
@@ -88,6 +175,8 @@ Set it to `true` if you ever want to work without the server running.
 | `Navbar.js` | Done - dead Events/Map links removed |
 | `App.js` | Done - routing for both directions |
 | `AuthContext.js` | Done - wired to real auth |
+| `Login.js` | **Done** - wired to `useAuth().login` |
+| `Register.js` | **Done** - includes the Student / Professional toggle |
 
 Use `Choose.js` and `CreateTeam.js` as your reference for calling the API and
 handling loading/error states.
@@ -96,8 +185,6 @@ handling loading/error states.
 
 | Page | Needs |
 |---|---|
-| `Login.js` | Rewire to `useAuth().login` - still calls old axios endpoints |
-| `Register.js` | Rewire to `useAuth().register`; ask Student vs Professional |
 | `Profile.js` | Rewire + new fields: `userType`, `collegeName`/`organizationName`, `skills`, `github`, `linkedin`, `interests`, `competitionPreferences`, `availability`, `rolePreference` |
 | `Teams.js` | Two sections: recommended teams (`getRecommendedTeams`) and browse all (`browseTeams`) |
 | `TeamDetail.js` | Gap display, member list, and the two actions - request to join, or (if leader) view candidates and invite |

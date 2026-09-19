@@ -52,9 +52,40 @@ function check(name, fn) {
   const NEHA = 'user_457';
   const OUTSIDER = 'user_463'; // different college
 
+  /* ------------------------- auth round trip -------------------------- */
+  /* Regression: completing a profile used to overwrite the whole user row,
+     destroying passwordHash, so every user was locked out of their own
+     account one screen after signing up. The suite missed it because no test
+     logged in AFTER creating a profile. */
+
+  let r;
+  const creds = { email: 'roundtrip@btkit.ac.in', password: 'longenough123', name: 'Round Trip' };
+  r = await call('POST', '/auth/register', { body: creds });
+  const newUserId = r.body.user.userId;
+  check('register issues a token', () => assert.ok(r.body.token));
+
+  r = await call('POST', '/profiles', {
+    as: newUserId,
+    body: { name: 'Round Trip', userType: 'student', collegeName: 'BTKIT', skills: ['AWS'], github: 'g', linkedin: 'l' },
+  });
+  check('profile is created', () => assert.strictEqual(r.status, 201));
+
+  r = await call('POST', '/auth/login', { body: { email: creds.email, password: creds.password } });
+  check('LOGIN STILL WORKS AFTER COMPLETING A PROFILE', () => {
+    assert.ok(r.body.token, 'password was destroyed by profile creation');
+  });
+
+  r = await call('PUT', `/profiles/${newUserId}`, { as: newUserId, body: { skills: ['AWS', 'Python'] } });
+  check('profile update does not leak the password hash', () => {
+    assert.ok(!('passwordHash' in r.body));
+  });
+
+  r = await call('POST', '/auth/login', { body: { email: creds.email, password: creds.password } });
+  check('login still works after updating a profile', () => assert.ok(r.body.token));
+
   /* ------------------------------ basics ----------------------------- */
 
-  let r = await call('GET', '/health');
+  r = await call('GET', '/health');
   check('health responds', () => assert.strictEqual(r.body.ok, true));
 
   r = await call('GET', '/teams/team_123');

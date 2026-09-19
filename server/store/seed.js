@@ -128,14 +128,38 @@ const TEAMS = [
   },
 ];
 
+/**
+ * Seeded users have no password by default - they exist to populate the
+ * recommendation lists, not to be signed into.
+ *
+ * The demo needs one exception: showing a candidate *accepting* an invitation
+ * means signing in as that candidate. Set SEED_PASSWORD to give every seeded
+ * user that password.
+ *
+ * Opt-in on purpose. A shared known password on a public API is fine for a
+ * demo with fake data and unacceptable anywhere else, so it never happens
+ * unless someone deliberately asks for it.
+ */
 async function seed(store) {
+  const password = process.env.SEED_PASSWORD;
+  let passwordHash = null;
+
+  if (password) {
+    if (password.length < 8) throw new Error('SEED_PASSWORD must be at least 8 characters');
+    passwordHash = await require('bcryptjs').hash(password, 10);
+  }
+
   await store.competitions.put(COMPETITION);
-  for (const u of USERS) await store.users.put(u);
+  for (const u of USERS) {
+    await store.users.put(passwordHash ? { ...u, passwordHash } : u);
+  }
   for (const t of TEAMS) await store.teams.put(t);
+
   return {
     users: USERS.length,
     competitions: 1,
     teams: TEAMS.length,
+    loginEnabled: Boolean(passwordHash),
   };
 }
 

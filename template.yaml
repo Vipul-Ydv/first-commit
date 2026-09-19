@@ -1,0 +1,187 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: HackMatch backend - API Gateway + Lambda + DynamoDB
+
+# Deploy:  sam build && sam deploy --guided
+# See docs/deploy.md.
+
+Parameters:
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    # MinLength so an empty value fails at changeset time with a clear error.
+    # Without it CloudFormation accepts "" and the stack deploys with no
+    # signing secret, which is silent and much worse than a failed deploy.
+    MinLength: 32
+    MaxLength: 256
+    Description: Signing secret for session tokens, at least 32 characters. Generate a random one; never reuse a value from source control.
+  ExtractionProvider:
+    Type: String
+    Default: rules
+    AllowedValues: [rules, bedrock]
+    Description: rules needs no model access. Switch to bedrock once the account is authorized.
+  BedrockModelId:
+    Type: String
+    Default: ''
+    Description: Copy exactly from the Bedrock model page. Usually a cross-region inference profile id.
+  AuthProvider:
+    Type: String
+    Default: local
+    AllowedValues: [local, cognito]
+    Description: local uses bcrypt + JWT in this app. cognito verifies the user pool's tokens instead. Both are deployed; this only picks which one the API accepts.
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 20
+    MemorySize: 512
+    Architectures: [arm64]
+
+Resources:
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      # $default, not a named stage. A named stage prefixes the request path
+      # with the stage name, so Lambda receives /prod/health and Express - which
+      # only knows about /health - returns 404 for every route. $default serves
+      # from the domain root and the paths match the app exactly.
+      StageName: $default
+      CorsConfiguration:
+        AllowOrigins: ['*']
+        AllowHeaders: [Content-Type, Authorization]
+        AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: server/
+      Handler: lambda.handler
+      Environment:
+        Variables:
+          NODE_ENV: production
+          STORE: dynamo
+          JWT_SECRET: !Ref JwtSecret
+          AUTH_PROVIDER: !Ref AuthProvider
+          COGNITO_USER_POOL_ID: !Ref UserPool
+          COGNITO_CLIENT_ID: !Ref UserPoolClient
+          EXTRACTION_PROVIDER: !Ref ExtractionProvider
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+          BEDROCK_REGION: us-east-1
+          TABLE_USERS: !Ref UsersTable
+          TABLE_COMPETITIONS: !Ref CompetitionsTable
+          TABLE_TEAMS: !Ref TeamsTable
+          TABLE_JOIN_REQUESTS: !Ref JoinRequestsTable
+          TABLE_INVITATIONS: !Ref InvitationsTable
+      Policies:
+        # Least privilege: only these five tables, nothing else in the account.
+        - DynamoDBCrudPolicy: { TableName: !Ref UsersTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref CompetitionsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref TeamsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref JoinRequestsTable }
+        - DynamoDBCrudPolicy: { TableName: !Ref InvitationsTable }
+        - Statement:
+            - Effect: Allow
+              Action: [bedrock:InvokeModel]
+              Resource: '*'
+      Events:
+        Any:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /{proxy+}
+            Method: ANY
+        Root:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref Api
+            Path: /
+            Method: ANY
+
+  # ------------------------------------------------------------------ #
+  # Cognito. Created regardless of AuthProvider so the frontend can be
+  # wired and tested against it without a redeploy; the API only starts
+  # trusting its tokens when AuthProvider=cognito.
+  # ------------------------------------------------------------------ #
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: hackmatch-users
+      # Sign in with email rather than a separate username.
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      Schema:
+        - Name: name
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: hackmatch-web
+      # No secret: this client runs in a browser, where a secret cannot be kept.
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      SupportedIdentityProviders: [COGNITO]
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: days
+        IdToken: days
+        RefreshToken: days
+
+  # PAY_PER_REQUEST so there is no idle cost and nothing to capacity-plan.
+  UsersTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey: { Name: userId, Type: String }
+      TableName: HackMatch-Users
+
+  CompetitionsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey: { Name: competitionId, Type: String }
+      TableName: HackMatch-Competitions
+
+  TeamsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey: { Name: teamId, Type: String }
+      TableName: HackMatch-Teams
+
+  JoinRequestsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey: { Name: requestId, Type: String }
+      TableName: HackMatch-JoinRequests
+
+  InvitationsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey: { Name: invitationId, Type: String }
+      TableName: HackMatch-Invitations
+
+Outputs:
+  ApiUrl:
+    Description: Base URL - set this as REACT_APP_API_URL in Amplify
+    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com'
+  UserPoolId:
+    Description: Set as REACT_APP_COGNITO_USER_POOL_ID in Amplify
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: Set as REACT_APP_COGNITO_CLIENT_ID in Amplify
+    Value: !Ref UserPoolClient
+  CognitoRegion:
+    Description: Set as REACT_APP_COGNITO_REGION in Amplify
+    Value: !Ref AWS::Region

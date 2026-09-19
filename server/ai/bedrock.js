@@ -52,32 +52,35 @@ async function extractWithBedrock(text) {
 
   // Lazy require so the rules path works without the SDK installed.
   let BedrockRuntimeClient;
-  let InvokeModelCommand;
+  let ConverseCommand;
   try {
-    ({ BedrockRuntimeClient, InvokeModelCommand } = require('@aws-sdk/client-bedrock-runtime'));
+    ({ BedrockRuntimeClient, ConverseCommand } = require('@aws-sdk/client-bedrock-runtime'));
   } catch {
     throw new Error('@aws-sdk/client-bedrock-runtime is not installed');
   }
 
   const client = new BedrockRuntimeClient({ region: process.env.BEDROCK_REGION || 'us-east-1' });
 
+  /*
+   * Converse, not InvokeModel.
+   *
+   * InvokeModel takes a different request body per provider - the Anthropic
+   * shape (anthropic_version, system, messages) fails against Amazon Nova,
+   * Llama or Mistral. Converse normalises all of them, so BEDROCK_MODEL_ID can
+   * point at whichever model this account is actually allowed to call without
+   * touching this file. That matters here: Anthropic models sit behind a
+   * first-time use-case review that Amazon's own models do not.
+   */
   const response = await client.send(
-    new InvokeModelCommand({
+    new ConverseCommand({
       modelId,
-      contentType: 'application/json',
-      accept: 'application/json',
-      body: JSON.stringify({
-        anthropic_version: 'bedrock-2023-05-31',
-        max_tokens: 1024,
-        temperature: 0,
-        system: SYSTEM,
-        messages: [{ role: 'user', content: buildPrompt(text) }],
-      }),
+      system: [{ text: SYSTEM }],
+      messages: [{ role: 'user', content: [{ text: buildPrompt(text) }] }],
+      inferenceConfig: { maxTokens: 1024, temperature: 0 },
     })
   );
 
-  const payload = JSON.parse(Buffer.from(response.body).toString('utf8'));
-  const content = payload?.content?.[0]?.text;
+  const content = response?.output?.message?.content?.[0]?.text;
   if (!content) throw new Error('Bedrock returned no content');
 
   const parsed = parseJson(content);
