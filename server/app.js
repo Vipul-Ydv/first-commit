@@ -11,6 +11,7 @@ const express = require('express');
 const cors = require('cors');
 
 const { errorMiddleware } = require('./lib/errors');
+const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profiles');
 const competitionRoutes = require('./routes/competitions');
 const teamRoutes = require('./routes/teams');
@@ -31,6 +32,7 @@ function createApp({ store }) {
     })
   );
 
+  app.use('/auth', authRoutes({ store }));
   app.use('/profiles', profileRoutes({ store }));
   app.use('/competitions', competitionRoutes({ store }));
 

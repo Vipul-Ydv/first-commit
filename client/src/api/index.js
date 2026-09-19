@@ -18,7 +18,7 @@ import dashLeaderMock from './mock/dashboard-leader.json';
  * Dev 1 (backend): when your API is deployed, flip this to `false`.
  * That is the entire integration step. Nothing else changes.
  * ------------------------------------------------------------------ */
-export const USE_MOCK = true;
+export const USE_MOCK = false;
 
 const BASE_URL = process.env.REACT_APP_API_URL || '';
 
@@ -38,6 +38,14 @@ const fake = (data, ms = 400) =>
   new Promise((resolve) => setTimeout(() => resolve(data), ms));
 
 const ok = { success: true };
+
+/* ------------------------------ Auth ------------------------------ */
+/* Local email + password today. Cognito replaces these three calls
+   without touching anything else in the app.                         */
+
+export const register = (body) => http.post('/auth/register', body).then((r) => r.data);
+export const login = (body) => http.post('/auth/login', body).then((r) => r.data);
+export const me = () => http.get('/auth/me').then((r) => r.data);
 
 /* ---------------------------- Profile ---------------------------- */
 
