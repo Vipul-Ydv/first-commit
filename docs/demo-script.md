@@ -8,6 +8,8 @@ Frontend  https://master.d2vspho7z11qj5.amplifyapp.com
 API       https://2eh5fktfc5.execute-api.us-east-1.amazonaws.com
 ```
 
+Dashboard  https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards/dashboard/HackMatch
+
 Demo logins: any seeded user, password `hackmatch2026`
 (`aisha@btkit.ac.in`, `neha@btkit.ac.in`, ...)
 
@@ -20,6 +22,9 @@ Demo logins: any seeded user, password `hackmatch2026`
 - [ ] Have the competition text ready to paste (below)
 - [ ] Do one full silent run-through first. Do not record the first attempt.
 - [ ] Close Slack, WhatsApp, email - no notification popups
+- [ ] Open the CloudWatch dashboard in a second tab, ready for the close
+- [ ] Hit the live app a few times first, so the dashboard has data on it and
+      is not five empty graphs
 
 **Competition text to paste:**
 
@@ -117,8 +122,17 @@ Switch to a user with no team → Find a Team → show recommended teams.
 
 ### 2:55-3:00 - Close
 
-> "AI recommends. Humans decide. Running on Lambda, API Gateway, DynamoDB,
-> Cognito and Amplify."
+Have the **CloudWatch dashboard** open in a second tab and cut to it here.
+
+> "Eight AWS services, all on demand - DynamoDB pay-per-request, arm64 Lambda,
+> the API throttled, nothing idling. And we can see it running: latency,
+> errors, alarms. AI recommends. Humans decide."
+
+Why this matters: Ship It scores **architecture and cost decisions**, not just
+"is it deployed". Almost nobody shows monitoring. Five seconds of a real
+dashboard says you can operate the thing, not only launch it.
+
+If you are running long, cut the second half of 0:20-0:40 rather than this.
 
 ---
 
