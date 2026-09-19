@@ -60,9 +60,39 @@ export const updateProfile = (userId, data) =>
 
 /* -------------------------- Competition -------------------------- */
 
-/** body: { text } or { url }. Returns the 6 fields for HUMAN REVIEW. */
+/** body: { text }, or { documentKey } after uploadDocument. Returns the 6 fields for HUMAN REVIEW. */
 export const analyzeCompetition = (body) =>
   USE_MOCK ? fake(competitionAnalyzeMock, 1200) : http.post('/competitions/analyze', body).then((r) => r.data);
+
+/**
+ * Upload a competition brief and get back the key to analyze it with.
+ *
+ * Two steps on purpose: the API hands out a presigned URL and the browser PUTs
+ * straight to S3, so the file never passes through Lambda. A 10 MB slide deck
+ * would otherwise exceed the 6 MB request payload limit.
+ *
+ * Uses bare fetch rather than our axios client - the presigned URL carries its
+ * own auth in the query string, and sending an Authorization header alongside
+ * it makes S3 reject the request.
+ */
+export async function uploadDocument(file) {
+  if (USE_MOCK) return fake({ key: 'mock/deck.pptx', filename: file.name });
+
+  const { data } = await http.post('/competitions/upload-url', { filename: file.name });
+
+  const res = await fetch(data.url, {
+    method: 'PUT',
+    body: file,
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+  });
+  if (!res.ok) throw new Error(`Upload failed (${res.status}). Please try again.`);
+
+  return { key: data.key, filename: file.name };
+}
+
+/** Short-lived link to a competition's attached brief. */
+export const getCompetitionDocument = (competitionId) =>
+  http.get(`/competitions/${competitionId}/document`).then((r) => r.data);
 
 export const createCompetition = (data) =>
   USE_MOCK ? fake({ competitionId: 'competition_123', ...data }) : http.post('/competitions', data).then((r) => r.data);

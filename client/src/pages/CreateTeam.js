@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import * as api from '../api';
-import { HiX, HiPlus } from 'react-icons/hi';
+import { HiX, HiPlus, HiDocumentText, HiUpload } from 'react-icons/hi';
 import { Spinner } from './Login';
 
 /**
@@ -21,12 +21,14 @@ export default function CreateTeam() {
   const [skillInput, setSkillInput] = useState('');
   const [skills, setSkills]       = useState([]);
   const [saving, setSaving]       = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [doc, setDoc]             = useState(null);   // { key, filename }
 
-  /* ── Analyze ── */
-  const analyze = async () => {
+  /* ── Analyze: from pasted text, or from an uploaded brief ── */
+  const runAnalyze = async (body) => {
     setAnalyzing(true);
     try {
-      const res = await api.analyzeCompetition({ text });
+      const res = await api.analyzeCompetition(body);
       setComp(res.fields);
       setUnextracted(res.unextracted || []);
       if (res.needsReview) toast('Some fields could not be extracted — please fill them in.', { icon: '✏️' });
@@ -35,6 +37,28 @@ export default function CreateTeam() {
       toast.error(api.readError(e));
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const analyze = () => runAnalyze({ text });
+
+  /* ── Upload a brief, then read it ── */
+  const onFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // let the same file be picked again after an error
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const { key, filename } = await api.uploadDocument(file);
+      setDoc({ key, filename });
+      toast.success(`${filename} uploaded`);
+      await runAnalyze({ documentKey: key });
+    } catch (err) {
+      toast.error(api.readError(err) || err.message);
+      setDoc(null);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -59,7 +83,7 @@ export default function CreateTeam() {
   const submit = async () => {
     setSaving(true);
     try {
-      const saved = await api.createCompetition(comp);
+      const saved = await api.createCompetition({ ...comp, documentKey: doc?.key || null });
       const team  = await api.createTeam({
         name: teamName,
         competitionId: saved.competitionId,
@@ -148,6 +172,52 @@ export default function CreateTeam() {
                 Enter manually
               </button>
             </div>
+
+            {/* ── Or upload the brief ── */}
+            <div className="flex items-center gap-3 my-4">
+              <div className="h-px bg-gray-200 flex-1" />
+              <span className="text-xs text-gray-400 uppercase tracking-wide">or</span>
+              <div className="h-px bg-gray-200 flex-1" />
+            </div>
+
+            {doc ? (
+              <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
+                <HiDocumentText className="h-5 w-5 text-primary-600 flex-shrink-0" />
+                <span className="text-sm text-gray-700 truncate flex-1">{doc.filename}</span>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-red-600 flex-shrink-0"
+                  onClick={() => setDoc(null)}
+                  title="Remove"
+                >
+                  <HiX className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <label
+                className={`flex items-center justify-center gap-2 rounded-lg border-2 border-dashed
+                            border-gray-300 px-4 py-6 text-sm transition-colors
+                            ${uploading ? 'opacity-60' : 'cursor-pointer hover:border-primary-400 hover:bg-gray-50'}`}
+              >
+                <input
+                  type="file"
+                  className="sr-only"
+                  accept=".pptx,.docx,.pdf,.txt,.md"
+                  onChange={onFile}
+                  disabled={uploading || analyzing}
+                />
+                {uploading ? (
+                  <><Spinner /> <span className="text-gray-500">Uploading…</span></>
+                ) : (
+                  <>
+                    <HiUpload className="h-5 w-5 text-gray-400" />
+                    <span className="text-gray-600">
+                      Upload the brief <span className="text-gray-400">— PPT, Word, PDF or text</span>
+                    </span>
+                  </>
+                )}
+              </label>
+            )}
           </div>
 
           {/* ── Step 2: Review extracted fields ── */}
