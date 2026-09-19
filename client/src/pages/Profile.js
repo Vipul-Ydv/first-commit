@@ -1,366 +1,575 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import * as api from '../api';
 import toast from 'react-hot-toast';
-import { 
-  HiUser, HiAcademicCap, HiCog, HiPlus, HiX, 
-  HiShieldCheck, HiStar, HiPencil 
+import {
+  HiUser, HiAcademicCap, HiBriefcase, HiPlus, HiX,
+  HiPencil, HiLink, HiCheck
 } from 'react-icons/hi';
+
+const AVAILABILITY_OPTIONS = ['weekdays', 'weekends', 'evenings', 'flexible'];
+const ROLE_OPTIONS = ['ML Engineer', 'Frontend Dev', 'Backend Dev', 'UI/UX Designer', 'Data Scientist', 'DevOps', 'Full Stack Dev', 'Product Manager'];
 
 function Profile() {
   const { user, updateUser } = useAuth();
+
+  const [profileData, setProfileData] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+
   const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const [saving, setSaving] = useState(false);
+
+  const [form, setForm] = useState({
+    userType: 'student',
     name: '',
-    bio: '',
-    department: '',
-    year: '',
-    skills: [],
+    collegeName: '',
+    organizationName: '',
+    github: '',
+    linkedin: '',
     interests: [],
-    lookingFor: []
+    skills: [],
+    competitionPreferences: [],
+    availability: '',
+    rolePreference: [],
   });
-  const [newSkill, setNewSkill] = useState({ name: '', level: 'intermediate' });
+
+  // Tag input helpers
+  const [newSkill, setNewSkill] = useState('');
   const [newInterest, setNewInterest] = useState('');
 
+  // ── Load profile on mount ──────────────────────────────────────────────────
   useEffect(() => {
-    if (user) {
-      setFormData({
-        name: user.name || '',
-        bio: user.bio || '',
-        department: user.department || '',
-        year: user.year || '',
-        skills: user.skills || [],
-        interests: user.interests || [],
-        lookingFor: user.lookingFor || []
-      });
-    }
-  }, [user]);
+    if (!user) return;
+    setLoadingProfile(true);
+    api
+      .getProfile(user.userId)
+      .then((data) => {
+        setProfileData(data);
+        populateForm(data);
+      })
+      .catch((e) => {
+        // 404 means the profile doesn't exist yet — drop into edit mode
+        if (api.errorCode(e) === 'NOT_FOUND') {
+          setEditing(true);
+        } else {
+          toast.error(api.readError(e));
+        }
+      })
+      .finally(() => setLoadingProfile(false));
+  }, [user]); // eslint-disable-line
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleAddSkill = () => {
-    if (newSkill.name.trim()) {
-      setFormData({
-        ...formData,
-        skills: [...formData.skills, { ...newSkill }]
-      });
-      setNewSkill({ name: '', level: 'intermediate' });
-    }
-  };
-
-  const handleRemoveSkill = (index) => {
-    setFormData({
-      ...formData,
-      skills: formData.skills.filter((_, i) => i !== index)
+  function populateForm(data) {
+    setForm({
+      userType: data.userType || 'student',
+      name: data.name || '',
+      collegeName: data.collegeName || '',
+      organizationName: data.organizationName || '',
+      github: data.github || '',
+      linkedin: data.linkedin || '',
+      interests: data.interests || [],
+      skills: data.skills || [],
+      competitionPreferences: data.competitionPreferences || [],
+      availability: data.availability || '',
+      rolePreference: data.rolePreference || [],
     });
+  }
+
+  // ── Form helpers ───────────────────────────────────────────────────────────
+  const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+
+  const addTag = (field, value, setter) => {
+    const v = value.trim();
+    if (!v || form[field].includes(v)) return;
+    set(field, [...form[field], v]);
+    setter('');
   };
 
-  const handleAddInterest = () => {
-    if (newInterest.trim() && !formData.interests.includes(newInterest)) {
-      setFormData({
-        ...formData,
-        interests: [...formData.interests, newInterest]
-      });
-      setNewInterest('');
-    }
+  const removeTag = (field, value) =>
+    set(field, form[field].filter((t) => t !== value));
+
+  const toggleArrayItem = (field, value) => {
+    const current = form[field];
+    set(
+      field,
+      current.includes(value) ? current.filter((v) => v !== value) : [...current, value]
+    );
   };
 
-  const handleRemoveInterest = (interest) => {
-    setFormData({
-      ...formData,
-      interests: formData.interests.filter(i => i !== interest)
-    });
-  };
-
-  const handleLookingFor = (value) => {
-    const updated = formData.lookingFor.includes(value)
-      ? formData.lookingFor.filter(v => v !== value)
-      : [...formData.lookingFor, value];
-    setFormData({ ...formData, lookingFor: updated });
-  };
-
-  const handleSubmit = async (e) => {
+  // ── Save ───────────────────────────────────────────────────────────────────
+  const handleSave = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    
+
+    if (!form.name.trim()) {
+      toast.error('Name is required.');
+      return;
+    }
+    if (form.userType === 'student' && !form.collegeName.trim()) {
+      toast.error('College name is required for students.');
+      return;
+    }
+    if (form.userType === 'professional' && !form.organizationName.trim()) {
+      toast.error('Organisation name is required for professionals.');
+      return;
+    }
+    if (form.skills.length === 0) {
+      toast.error('Add at least one skill — it is needed for matching.');
+      return;
+    }
+
+    setSaving(true);
     try {
-      const res = await axios.put('/api/users/profile', formData);
-      updateUser(res.data);
-      toast.success('Profile updated!');
+      const payload = { ...form };
+
+      let saved;
+      if (profileData) {
+        saved = await api.updateProfile(user.userId, payload);
+      } else {
+        saved = await api.createProfile(payload);
+      }
+
+      setProfileData(saved);
+      populateForm(saved);
+      // Merge back into AuthContext so profileComplete updates immediately
+      updateUser({
+        name: saved.name,
+        skills: saved.skills,
+        collegeName: saved.collegeName,
+        organizationName: saved.organizationName,
+      });
+
+      toast.success('Profile saved!');
       setEditing(false);
-    } catch (error) {
-      toast.error('Failed to update profile');
+    } catch (e) {
+      toast.error(api.readError(e));
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
+  const cancelEdit = () => {
+    if (profileData) {
+      populateForm(profileData);
+      setEditing(false);
+    }
+    // If no profile yet, stay in edit mode — there is nothing to cancel to
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  if (loadingProfile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
+      <div className="max-w-3xl mx-auto px-4">
+
+        {/* ── Page header ── */}
         <div className="card mb-6">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center">
-                <HiUser className="h-10 w-10 text-primary-600" />
+              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <HiUser className="h-8 w-8 text-primary-600" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold">{user?.name}</h1>
-                  {user?.isVerified && (
-                    <span className="badge badge-verified">
-                      <HiShieldCheck className="h-4 w-4 mr-1" /> Verified
-                    </span>
-                  )}
-                </div>
-                <p className="text-gray-600">{user?.email}</p>
-                <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                  <HiAcademicCap className="h-4 w-4" /> {user?.college}
-                </p>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {form.name || user?.name || 'Your Profile'}
+                </h1>
+                <p className="text-gray-500 text-sm">{user?.email}</p>
+                {form.userType === 'student' && form.collegeName && (
+                  <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
+                    <HiAcademicCap className="h-4 w-4" /> {form.collegeName}
+                  </p>
+                )}
+                {form.userType === 'professional' && form.organizationName && (
+                  <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
+                    <HiBriefcase className="h-4 w-4" /> {form.organizationName}
+                  </p>
+                )}
               </div>
             </div>
-            <button
-              onClick={() => setEditing(!editing)}
-              className="btn-secondary flex items-center gap-2"
-            >
-              <HiPencil className="h-4 w-4" />
-              {editing ? 'Cancel' : 'Edit Profile'}
-            </button>
+
+            {!editing && (
+              <button
+                onClick={() => setEditing(true)}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <HiPencil className="h-4 w-4" />
+                Edit
+              </button>
+            )}
           </div>
         </div>
 
         {editing ? (
-          /* Edit Mode */
-          <form onSubmit={handleSubmit} className="space-y-6">
+          /* ════════════════════════ EDIT MODE ════════════════════════ */
+          <form onSubmit={handleSave} className="space-y-6">
+
+            {/* User type toggle */}
             <div className="card">
-              <h2 className="text-lg font-semibold mb-4">Basic Info</h2>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="input-field"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <input
-                    type="text"
-                    name="department"
-                    value={formData.department}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="Computer Science"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                  <select
-                    name="year"
-                    value={formData.year}
-                    onChange={handleChange}
-                    className="input-field"
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Account type</h2>
+              <div className="flex gap-3">
+                {['student', 'professional'].map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => set('userType', type)}
+                    className={`flex-1 py-3 rounded-lg border font-medium capitalize transition-colors duration-150 ${
+                      form.userType === type
+                        ? 'bg-primary-600 text-white border-primary-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary-400'
+                    }`}
                   >
-                    <option value="">Select year</option>
-                    <option value="1">1st Year</option>
-                    <option value="2">2nd Year</option>
-                    <option value="3">3rd Year</option>
-                    <option value="4">4th Year</option>
-                    <option value="5">5th Year</option>
-                  </select>
-                </div>
+                    {type === 'student' ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <HiAcademicCap className="h-4 w-4" /> Student
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">
+                        <HiBriefcase className="h-4 w-4" /> Professional
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
-                <textarea
-                  name="bio"
-                  value={formData.bio}
-                  onChange={handleChange}
-                  rows="3"
-                  className="input-field"
-                  placeholder="Tell us about yourself..."
-                />
+            </div>
+
+            {/* Basic info */}
+            <div className="card">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic info</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Full name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => set('name', e.target.value)}
+                    className="input-field"
+                    placeholder="Your name"
+                    required
+                  />
+                </div>
+
+                {form.userType === 'student' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      College / University <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.collegeName}
+                      onChange={(e) => set('collegeName', e.target.value)}
+                      className="input-field"
+                      placeholder="e.g. BTKIT, IIT Delhi"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Organisation <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.organizationName}
+                      onChange={(e) => set('organizationName', e.target.value)}
+                      className="input-field"
+                      placeholder="e.g. Google, Startup Inc."
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Links */}
+            <div className="card">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Links</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    GitHub
+                  </label>
+                  <div className="relative">
+                    <HiLink className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="url"
+                      value={form.github}
+                      onChange={(e) => set('github', e.target.value)}
+                      className="input-field pl-9"
+                      placeholder="https://github.com/username"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    LinkedIn
+                  </label>
+                  <div className="relative">
+                    <HiLink className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="url"
+                      value={form.linkedin}
+                      onChange={(e) => set('linkedin', e.target.value)}
+                      className="input-field pl-9"
+                      placeholder="https://linkedin.com/in/username"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Skills */}
             <div className="card">
-              <h2 className="text-lg font-semibold mb-4">Skills</h2>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {formData.skills.map((skill, index) => (
-                  <span key={index} className="badge badge-skills flex items-center gap-1">
-                    {skill.name} ({skill.level})
-                    <button type="button" onClick={() => handleRemoveSkill(index)}>
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                Skills <span className="text-red-500">*</span>
+              </h2>
+              <p className="text-sm text-gray-500 mb-4">
+                Used by the AI for matching — add everything you are comfortable with.
+              </p>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {form.skills.map((skill) => (
+                  <span key={skill} className="badge badge-skills flex items-center gap-1">
+                    {skill}
+                    <button
+                      type="button"
+                      onClick={() => removeTag('skills', skill)}
+                      className="hover:text-blue-900 ml-0.5"
+                      aria-label={`Remove ${skill}`}
+                    >
                       <HiX className="h-3 w-3" />
                     </button>
                   </span>
                 ))}
+                {form.skills.length === 0 && (
+                  <p className="text-sm text-gray-400">No skills added yet.</p>
+                )}
               </div>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  value={newSkill.name}
-                  onChange={(e) => setNewSkill({ ...newSkill, name: e.target.value })}
-                  className="input-field flex-1"
-                  placeholder="Add a skill"
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddSkill()}
+                  value={newSkill}
+                  onChange={(e) => setNewSkill(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); addTag('skills', newSkill, setNewSkill); }
+                  }}
+                  className="input-field"
+                  placeholder="e.g. Python, AWS, UI/UX"
                 />
-                <select
-                  value={newSkill.level}
-                  onChange={(e) => setNewSkill({ ...newSkill, level: e.target.value })}
-                  className="input-field w-40"
+                <button
+                  type="button"
+                  onClick={() => addTag('skills', newSkill, setNewSkill)}
+                  className="btn-primary flex-shrink-0 flex items-center gap-1"
                 >
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="advanced">Advanced</option>
-                </select>
-                <button type="button" onClick={handleAddSkill} className="btn-primary">
-                  <HiPlus className="h-5 w-5" />
+                  <HiPlus className="h-4 w-4" /> Add
                 </button>
               </div>
             </div>
 
             {/* Interests */}
             <div className="card">
-              <h2 className="text-lg font-semibold mb-4">Interests</h2>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {formData.interests.map((interest) => (
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Interests</h2>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {form.interests.map((interest) => (
                   <span key={interest} className="badge bg-purple-100 text-purple-800 flex items-center gap-1">
                     {interest}
-                    <button type="button" onClick={() => handleRemoveInterest(interest)}>
+                    <button
+                      type="button"
+                      onClick={() => removeTag('interests', interest)}
+                      className="hover:text-purple-900 ml-0.5"
+                      aria-label={`Remove ${interest}`}
+                    >
                       <HiX className="h-3 w-3" />
                     </button>
                   </span>
                 ))}
+                {form.interests.length === 0 && (
+                  <p className="text-sm text-gray-400">No interests added yet.</p>
+                )}
               </div>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={newInterest}
                   onChange={(e) => setNewInterest(e.target.value)}
-                  className="input-field flex-1"
-                  placeholder="Add an interest"
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddInterest()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); addTag('interests', newInterest, setNewInterest); }
+                  }}
+                  className="input-field"
+                  placeholder="e.g. AI, Climate Tech, EdTech"
                 />
-                <button type="button" onClick={handleAddInterest} className="btn-primary">
-                  <HiPlus className="h-5 w-5" />
+                <button
+                  type="button"
+                  onClick={() => addTag('interests', newInterest, setNewInterest)}
+                  className="btn-primary flex-shrink-0 flex items-center gap-1"
+                >
+                  <HiPlus className="h-4 w-4" /> Add
                 </button>
               </div>
             </div>
 
-            {/* Looking For */}
+            {/* Availability */}
             <div className="card">
-              <h2 className="text-lg font-semibold mb-4">Looking For</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Availability</h2>
               <div className="flex flex-wrap gap-3">
-                {[
-                  { value: 'hackathon', label: 'Hackathon Team' },
-                  { value: 'project', label: 'Project Collaboration' },
-                  { value: 'networking', label: 'Networking' },
-                  { value: 'mentorship', label: 'Mentorship' }
-                ].map((option) => (
+                {AVAILABILITY_OPTIONS.map((opt) => (
                   <button
-                    key={option.value}
+                    key={opt}
                     type="button"
-                    onClick={() => handleLookingFor(option.value)}
-                    className={`px-4 py-2 rounded-lg border transition ${
-                      formData.lookingFor.includes(option.value)
+                    onClick={() => set('availability', form.availability === opt ? '' : opt)}
+                    className={`px-4 py-2 rounded-lg border font-medium capitalize transition-colors duration-150 ${
+                      form.availability === opt
                         ? 'bg-primary-600 text-white border-primary-600'
                         : 'bg-white text-gray-700 border-gray-300 hover:border-primary-400'
                     }`}
                   >
-                    {option.label}
+                    {opt}
                   </button>
                 ))}
               </div>
             </div>
 
-            <button type="submit" disabled={loading} className="w-full btn-primary">
-              {loading ? 'Saving...' : 'Save Profile'}
-            </button>
+            {/* Role preference */}
+            <div className="card">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Role preference</h2>
+              <p className="text-sm text-gray-500 mb-4">
+                The roles you want to play on a team — pick all that apply.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {ROLE_OPTIONS.map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => toggleArrayItem('rolePreference', role)}
+                    className={`px-4 py-2 rounded-lg border font-medium transition-colors duration-150 flex items-center gap-1.5 ${
+                      form.rolePreference.includes(role)
+                        ? 'bg-primary-600 text-white border-primary-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary-400'
+                    }`}
+                  >
+                    {form.rolePreference.includes(role) && <HiCheck className="h-3.5 w-3.5" />}
+                    {role}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action row */}
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex-1 btn-primary flex items-center justify-center"
+              >
+                {saving ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                ) : (
+                  'Save Profile'
+                )}
+              </button>
+              {profileData && (
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </form>
+
         ) : (
-          /* View Mode */
+          /* ════════════════════════ VIEW MODE ════════════════════════ */
           <div className="space-y-6">
+
             {/* Skills */}
             <div className="card">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <HiCog className="text-primary-600" /> Skills
-              </h2>
-              {formData.skills.length > 0 ? (
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Skills</h2>
+              {form.skills.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {formData.skills.map((skill, index) => (
-                    <span key={index} className="badge badge-skills">
-                      {skill.name} ({skill.level})
-                    </span>
+                  {form.skills.map((skill) => (
+                    <span key={skill} className="badge badge-skills">{skill}</span>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500">No skills added yet</p>
+                <p className="text-gray-400 text-sm">No skills added yet.</p>
               )}
             </div>
 
             {/* Interests */}
             <div className="card">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <HiStar className="text-aws-orange" /> Interests
-              </h2>
-              {formData.interests.length > 0 ? (
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Interests</h2>
+              {form.interests.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {formData.interests.map((interest) => (
-                    <span key={interest} className="badge bg-purple-100 text-purple-800">
-                      {interest}
-                    </span>
+                  {form.interests.map((interest) => (
+                    <span key={interest} className="badge bg-purple-100 text-purple-800">{interest}</span>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500">No interests added yet</p>
+                <p className="text-gray-400 text-sm">No interests added yet.</p>
               )}
             </div>
 
-            {/* Looking For */}
+            {/* Availability + Role preference */}
             <div className="card">
-              <h2 className="text-lg font-semibold mb-4">Looking For</h2>
-              {formData.lookingFor.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {formData.lookingFor.map((item) => (
-                    <span key={item} className="badge bg-green-100 text-green-800 capitalize">
-                      {item}
-                    </span>
-                  ))}
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Availability &amp; role</h2>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Availability: </span>
+                  {form.availability ? (
+                    <span className="badge bg-green-100 text-green-800 capitalize">{form.availability}</span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">Not set</span>
+                  )}
                 </div>
-              ) : (
-                <p className="text-gray-500">Not specified</p>
-              )}
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Role preference: </span>
+                  {form.rolePreference.length > 0 ? (
+                    <span className="flex flex-wrap gap-2 mt-1">
+                      {form.rolePreference.map((r) => (
+                        <span key={r} className="badge bg-indigo-100 text-indigo-800">{r}</span>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">Not set</span>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Hackathon History */}
-            <div className="card">
-              <h2 className="text-lg font-semibold mb-4">Hackathon History</h2>
-              {user?.hackathonHistory?.length > 0 ? (
-                <div className="space-y-3">
-                  {user.hackathonHistory.map((hack, index) => (
-                    <div key={index} className="border border-gray-100 rounded-lg p-3">
-                      <div className="font-medium">{hack.name}</div>
-                      <div className="text-sm text-gray-600">
-                        {hack.role} • {hack.achievement}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {new Date(hack.date).toLocaleDateString()}
-                      </div>
-                    </div>
-                  ))}
+            {/* Links */}
+            {(form.github || form.linkedin) && (
+              <div className="card">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Links</h2>
+                <div className="space-y-2">
+                  {form.github && (
+                    <a
+                      href={form.github}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-primary-600 hover:underline text-sm"
+                    >
+                      <HiLink className="h-4 w-4" /> GitHub
+                    </a>
+                  )}
+                  {form.linkedin && (
+                    <a
+                      href={form.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-primary-600 hover:underline text-sm"
+                    >
+                      <HiLink className="h-4 w-4" /> LinkedIn
+                    </a>
+                  )}
                 </div>
-              ) : (
-                <p className="text-gray-500">No hackathon history yet</p>
-              )}
-            </div>
+              </div>
+            )}
+
           </div>
         )}
       </div>

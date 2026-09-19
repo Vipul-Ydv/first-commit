@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import * as api from '../api';
 import toast from 'react-hot-toast';
 import { HiMail, HiLockClosed, HiUser, HiAcademicCap, HiEye, HiEyeOff } from 'react-icons/hi';
 
@@ -41,7 +42,7 @@ function Register() {
       toast.success('Account created! Please verify your email.');
       navigate('/dashboard');
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Registration failed');
+      toast.error(api.readError(error));
     } finally {
       setLoading(false);
     }

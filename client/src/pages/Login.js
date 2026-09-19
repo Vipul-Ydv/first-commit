@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import * as api from '../api';
 import toast from 'react-hot-toast';
 import { HiMail, HiLockClosed, HiEye, HiEyeOff } from 'react-icons/hi';
+
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -21,7 +23,7 @@ function Login() {
       toast.success('Welcome back!');
       navigate('/dashboard');
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Login failed');
+        toast.error(api.readError(error));
     } finally {
       setLoading(false);
     }
