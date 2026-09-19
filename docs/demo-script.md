@@ -19,14 +19,22 @@ Demo logins: any seeded user, password `hackmatch2026`
 
 - [ ] Open the live URL in a clean browser window - no bookmarks bar, no other tabs
 - [ ] Log out, so you start from the landing page
-- [ ] Have the competition text ready to paste (below)
+- [ ] Have `docs/demo/AI-Innovation-Challenge-2026.pptx` on your desktop, ready to pick
+- [ ] Upload it once before recording, so the flow is warm and you know the timing
 - [ ] Do one full silent run-through first. Do not record the first attempt.
 - [ ] Close Slack, WhatsApp, email - no notification popups
 - [ ] Open the CloudWatch dashboard in a second tab, ready for the close
 - [ ] Hit the live app a few times first, so the dashboard has data on it and
       is not five empty graphs
 
-**Competition text to paste:**
+**The file to upload:** `docs/demo/AI-Innovation-Challenge-2026.pptx`
+
+A five-slide deck written the way a real hackathon deck is - title, organiser,
+eligibility, dates, prizes. Verified against the deployed API: all six fields
+extract, `needsReview: false`, nothing left blank.
+
+**Fallback, if the upload misbehaves on the day.** Click "Enter manually", or
+paste this into the text box and use *Extract details*:
 
 ```
 AI Innovation Challenge 2026
@@ -35,6 +43,9 @@ Teams of 2-4 members.
 Registration deadline: 30 November 2026.
 Open only to students from BTKIT.
 ```
+
+Both paths produce the same six fields. Know which one you are doing before you
+hit record - deciding on camera is what makes a demo look shaky.
 
 ---
 
@@ -58,17 +69,34 @@ Log in. Show the profile: skills, availability, role preference.
 **Show the Choose screen.** This is where the two directions become visible.
 Do not skip it.
 
-### 0:40-1:10 - Competition, and the AI
+### 0:40-1:10 - The competition brief, and the AI
 
-Create a Team → paste the competition text → **Extract details**.
+Create a Team → **Upload the brief** → pick the `.pptx`.
 
-> "Paste the competition. We pull out six fields - name, organizer, deadline,
-> team size, and who's eligible. Nothing else."
+> "Every hackathon sends you a deck or a PDF. Rather than retyping it, upload
+> the actual file."
 
-Let the extracted fields appear on screen for a beat.
+The upload and extraction run back to back - let them finish on screen.
 
-> "And a human confirms it before anything is saved. If we can't extract a
-> field confidently, we leave it blank rather than guess."
+> "It reads the deck and pulls out six things: name, organiser, deadline, team
+> size, and who's eligible. Nothing else. It never touches required skills or
+> judging criteria."
+
+Let the filled fields sit on screen for a beat.
+
+> "And a human confirms it before anything is saved. If a field can't be
+> extracted confidently we leave it blank rather than guess."
+
+**Why upload rather than paste.** It is the more convincing version of the same
+capability - a real file going in beats a block of text someone prepared. The
+file goes straight to S3 with a presigned URL, so it never passes through
+Lambda, and the extracted text runs through exactly the same path as pasted
+text.
+
+Worth one sentence if you have room:
+
+> "PPT, Word, PDF or plain text - and the file stays attached to the
+> competition, so everyone who joins the team can open the same brief."
 
 ### 1:10-1:30 - The leader defines the need
 
