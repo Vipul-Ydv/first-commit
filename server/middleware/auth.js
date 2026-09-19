@@ -21,9 +21,24 @@ function bearer(req) {
   return header.startsWith('Bearer ') ? header.slice(7).trim() : null;
 }
 
+/**
+ * In production the secret must come from the environment. Falling back to a
+ * default that is visible in this repository would let anyone forge a token
+ * for any user, so refuse to run instead of failing open.
+ */
+function signingSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (secret) return secret;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET is not set. Refusing to start with a known default secret.');
+  }
+  return 'dev-secret';
+}
+
 function verifyLocal(token) {
   try {
-    return jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
+    return jwt.verify(token, signingSecret());
   } catch {
     return null;
   }
@@ -59,9 +74,9 @@ const requireAuth = route(async (req, res, next) => {
   return next();
 });
 
-/** Issue a local development token. Replaced by Cognito's own login. */
+/** Issue a session token. Replaced by Cognito's own login. */
 function issueToken(userId) {
-  return jwt.sign({ userId }, process.env.JWT_SECRET || 'dev-secret', { expiresIn: '7d' });
+  return jwt.sign({ userId }, signingSecret(), { expiresIn: '7d' });
 }
 
 module.exports = { requireAuth, issueToken };
