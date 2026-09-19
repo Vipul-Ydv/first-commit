@@ -1,182 +1,189 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import toast from 'react-hot-toast';
-import { HiMail, HiLockClosed, HiUser, HiEye, HiEyeOff } from 'react-icons/hi';
 import * as api from '../api';
+import toast from 'react-hot-toast';
+import { HiEye, HiEyeOff } from 'react-icons/hi';
+import { AuthShell, Field, Spinner } from './Login';
 
-/**
- * Sign up.
- *
- * No college-email requirement - spec A.1 is email + password plus a
- * Student / Professional choice. That choice is asked here because it decides
- * whether the profile form later asks for College Name or Organization Name,
- * and that single field is what the whole eligibility system runs on (A.8).
- */
-function Register() {
-  const [form, setForm] = useState({
+export default function Register() {
+  const [userType, setUserType] = useState('student');
+  const [formData, setFormData] = useState({
     name: '',
     email: '',
+    collegeName: '',
+    organizationName: '',
     password: '',
     confirmPassword: '',
-    userType: 'student',
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]           = useState(false);
   const { register } = useAuth();
-  const navigate = useNavigate();
+  const navigate      = useNavigate();
 
-  const change = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const set = (field) => (e) => setFormData((prev) => ({ ...prev, [field]: e.target.value }));
 
-  const submit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (form.password !== form.confirmPassword) {
+    if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
-    // Matches the server rule, so the user hears about it before a round trip.
-    if (form.password.length < 8) {
+    if (formData.password.length < 8) {
       toast.error('Password must be at least 8 characters');
       return;
     }
-
     setLoading(true);
     try {
-      await register({
-        name: form.name,
-        email: form.email,
-        password: form.password,
-        userType: form.userType,
-      });
-      toast.success('Account created');
+      const body = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        userType,
+        ...(userType === 'student'
+          ? { collegeName: formData.collegeName }
+          : { organizationName: formData.organizationName }),
+      };
+      await register(body);
+      toast.success('Account created!');
       navigate('/profile');
-    } catch (err) {
-      toast.error(api.readError(err));
+    } catch (error) {
+      toast.error(api.readError(error));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link to="/" className="flex justify-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center">
-            <span className="text-white font-bold text-3xl">H</span>
-          </div>
-        </Link>
-        <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">Create your account</h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Already have one?{' '}
-          <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500">
-            Sign in
-          </Link>
-        </p>
-      </div>
+    <AuthShell
+      heading="Create your account"
+      sub={<>Already have an account? <Link to="/login" className="text-primary-600 hover:text-primary-700 font-medium">Sign in</Link></>}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="card">
-          <form className="space-y-5" onSubmit={submit}>
-            <Field label="Full name" icon={<HiUser />}>
-              <input
-                name="name"
-                type="text"
-                required
-                className="input-field pl-10"
-                placeholder="Aisha Khan"
-                value={form.name}
-                onChange={change}
-              />
-            </Field>
-
-            <Field label="Email" icon={<HiMail />}>
-              <input
-                name="email"
-                type="email"
-                required
-                className="input-field pl-10"
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={change}
-              />
-            </Field>
-
-            {/* Asked once, at signup - it drives the profile form and eligibility. */}
-            <div>
-              <span className="block text-sm font-medium text-gray-700 mb-2">I am a</span>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  ['student', 'Student'],
-                  ['professional', 'Professional / Other'],
-                ].map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setForm({ ...form, userType: value })}
-                    className={`px-4 py-3 rounded-lg border text-sm font-medium transition ${
-                      form.userType === value
-                        ? 'border-primary-600 bg-primary-50 text-primary-700'
-                        : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <Field label="Password" icon={<HiLockClosed />}>
-              <input
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                required
-                className="input-field pl-10 pr-10"
-                placeholder="At least 8 characters"
-                value={form.password}
-                onChange={change}
-              />
+        {/* User type toggle */}
+        <Field label="I am a…">
+          <div className="grid grid-cols-2 gap-2">
+            {['student', 'professional'].map((type) => (
               <button
+                key={type}
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400"
+                onClick={() => setUserType(type)}
+                className={`py-2 text-sm font-medium rounded-md border transition-colors duration-150 capitalize ${
+                  userType === type
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                }`}
               >
-                {showPassword ? <HiEyeOff /> : <HiEye />}
+                {type}
               </button>
-            </Field>
+            ))}
+          </div>
+        </Field>
 
-            <Field label="Confirm password" icon={<HiLockClosed />}>
-              <input
-                name="confirmPassword"
-                type={showPassword ? 'text' : 'password'}
-                required
-                className="input-field pl-10"
-                placeholder="Repeat your password"
-                value={form.confirmPassword}
-                onChange={change}
-              />
-            </Field>
+        {/* Name */}
+        <Field label="Full name">
+          <input
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={set('name')}
+            className="input-field"
+            placeholder="Your full name"
+            autoComplete="name"
+            required
+          />
+        </Field>
 
-            <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
-              {loading ? 'Creating account…' : 'Create account'}
+        {/* Email */}
+        <Field
+          label={userType === 'student' ? 'College email' : 'Email'}
+          hint={userType === 'student' ? 'Use your .edu or .ac.in address' : undefined}
+        >
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={set('email')}
+            className="input-field"
+            placeholder={userType === 'student' ? 'you@college.edu' : 'you@example.com'}
+            autoComplete="email"
+            required
+          />
+        </Field>
+
+        {/* Institution */}
+        {userType === 'student' ? (
+          <Field label="College / University">
+            <input
+              type="text"
+              name="collegeName"
+              value={formData.collegeName}
+              onChange={set('collegeName')}
+              className="input-field"
+              placeholder="e.g. BTKIT, IIT Delhi"
+              required
+            />
+          </Field>
+        ) : (
+          <Field label="Organisation">
+            <input
+              type="text"
+              name="organizationName"
+              value={formData.organizationName}
+              onChange={set('organizationName')}
+              className="input-field"
+              placeholder="e.g. Google, Startup Inc."
+              required
+            />
+          </Field>
+        )}
+
+        {/* Password */}
+        <Field label="Password" hint="Minimum 8 characters">
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              value={formData.password}
+              onChange={set('password')}
+              className="input-field pr-10"
+              placeholder="••••••••"
+              autoComplete="new-password"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              {showPassword ? <HiEyeOff className="h-4 w-4" /> : <HiEye className="h-4 w-4" />}
             </button>
-          </form>
-        </div>
-      </div>
-    </div>
+          </div>
+        </Field>
+
+        {/* Confirm password */}
+        <Field label="Confirm password">
+          <input
+            type={showPassword ? 'text' : 'password'}
+            name="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={set('confirmPassword')}
+            className="input-field"
+            placeholder="••••••••"
+            autoComplete="new-password"
+            required
+          />
+        </Field>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn-primary w-full justify-center mt-2"
+        >
+          {loading ? <><Spinner /> Creating account…</> : 'Create account'}
+        </button>
+      </form>
+    </AuthShell>
   );
 }
-
-function Field({ label, icon, children }) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <div className="relative">
-        <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">{icon}</span>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-export default Register;

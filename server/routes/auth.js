@@ -43,6 +43,12 @@ module.exports = function authRoutes({ store }) {
     if (password.length < 8) fail('VALIDATION_FAILED', 'Password must be at least 8 characters.');
     if (!name) fail('VALIDATION_FAILED', 'Name is required.');
 
+    const userType = req.body?.userType === 'professional' ? 'professional' : 'student';
+    // The form asks for one or the other depending on the toggle; take whichever
+    // arrived and file it under the field that matches userType.
+    const raw = userType === 'student' ? req.body?.collegeName : req.body?.organizationName;
+    const institution = typeof raw === 'string' && raw.trim() ? raw.trim().slice(0, 200) : null;
+
     const existing = await store.users.findOne((u) => u.email === email);
     if (existing) fail('VALIDATION_FAILED', 'That email is already registered.');
 
@@ -54,9 +60,12 @@ module.exports = function authRoutes({ store }) {
       // No email service in scope, so accounts start usable. Cognito's
       // verification link replaces this when it lands.
       emailVerified: true,
-      userType: req.body?.userType === 'professional' ? 'professional' : 'student',
-      collegeName: null,
-      organizationName: null,
+      userType,
+      // Keep whichever institution the signup form collected. These used to be
+      // hardcoded to null, so anyone who typed their college at signup was
+      // asked for it again on the very next screen.
+      collegeName: userType === 'student' ? institution : null,
+      organizationName: userType === 'professional' ? institution : null,
       skills: [],
       interests: [],
       competitionPreferences: [],

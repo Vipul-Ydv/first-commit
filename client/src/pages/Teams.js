@@ -1,350 +1,381 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
+import * as api from '../api';
 import toast from 'react-hot-toast';
-import { 
-  HiUsers, HiPlus, HiSearch, HiFilter, 
-  HiLightningBolt, HiUserGroup 
+import {
+  HiUsers, HiPlus, HiLightningBolt, HiUserGroup,
+  HiClock, HiCheckCircle, HiArrowRight,
 } from 'react-icons/hi';
 
-function Teams() {
-  const [teams, setTeams] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterSkill, setFilterSkill] = useState('');
-  const [newTeam, setNewTeam] = useState({
-    name: '',
-    description: '',
-    maxMembers: 4,
-    requiredSkills: [],
-    lookingFor: []
-  });
-  const [newSkill, setNewSkill] = useState('');
+/* ─────────────────────────────────────────────
+   Constants
+───────────────────────────────────────────── */
 
-  useEffect(() => {
-    fetchTeams();
-  }, []);
+const STATUS_CFG = {
+  recruiting:  { label: 'Recruiting',  cls: 'bg-green-50 text-green-700 border border-green-200' },
+  almost_full: { label: 'Almost full', cls: 'bg-yellow-50 text-yellow-700 border border-yellow-200' },
+  full:        { label: 'Full',        cls: 'bg-red-50 text-red-700 border border-red-200' },
+  closed:      { label: 'Closed',      cls: 'bg-gray-100 text-gray-500' },
+};
 
-  const fetchTeams = async () => {
-    try {
-      const res = await axios.get('/api/teams');
-      setTeams(res.data);
-    } catch (error) {
-      console.error('Error fetching teams:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+const SILENT_CODES = new Set(['DUPLICATE_REQUEST', 'ALREADY_MEMBER', 'TEAM_FULL', 'NOT_ELIGIBLE']);
+const SILENT_LABEL = {
+  DUPLICATE_REQUEST: 'Already requested',
+  ALREADY_MEMBER:    'Already a member',
+  TEAM_FULL:         'Team is full',
+  NOT_ELIGIBLE:      'Not eligible',
+};
 
-  const handleCreateTeam = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await axios.post('/api/teams', newTeam);
-      setTeams([res.data, ...teams]);
-      setShowCreateModal(false);
-      setNewTeam({
-        name: '',
-        description: '',
-        maxMembers: 4,
-        requiredSkills: [],
-        lookingFor: []
-      });
-      toast.success('Team created!');
-    } catch (error) {
-      toast.error('Failed to create team');
-    }
-  };
+function StatusBadge({ status }) {
+  const cfg = STATUS_CFG[status] || { label: status, cls: 'bg-gray-100 text-gray-500' };
+  return <span className={`badge ${cfg.cls}`}>{cfg.label}</span>;
+}
 
-  const handleAddSkill = () => {
-    if (newSkill.trim() && !newTeam.requiredSkills.includes(newSkill)) {
-      setNewTeam({
-        ...newTeam,
-        requiredSkills: [...newTeam.requiredSkills, newSkill]
-      });
-      setNewSkill('');
-    }
-  };
+function fmt(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
-  const handleRemoveSkill = (skill) => {
-    setNewTeam({
-      ...newTeam,
-      requiredSkills: newTeam.requiredSkills.filter(s => s !== skill)
-    });
-  };
+function stillNeeded(required = [], matched = []) {
+  const m = new Set(matched.map((s) => s.toLowerCase()));
+  return required.filter((s) => !m.has(s.toLowerCase()));
+}
 
-  const handleLookingFor = (value) => {
-    const updated = newTeam.lookingFor.includes(value)
-      ? newTeam.lookingFor.filter(v => v !== value)
-      : [...newTeam.lookingFor, value];
-    setNewTeam({ ...newTeam, lookingFor: updated });
-  };
+/* ─────────────────────────────────────────────
+   Join button — tracks per-team state
+───────────────────────────────────────────── */
 
-  const filteredTeams = teams.filter(team => {
-    const matchesSearch = team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      team.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSkill = !filterSkill || 
-      team.requiredSkills.some(s => s.toLowerCase().includes(filterSkill.toLowerCase()));
-    return matchesSearch && matchesSkill;
-  });
-
-  if (loading) {
+function JoinButton({ teamId, state, onRequest }) {
+  if (state === 'sent') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
+      <span className="badge bg-green-50 text-green-700 border border-green-200 flex items-center gap-1">
+        <HiCheckCircle className="h-3.5 w-3.5" /> Requested
+      </span>
     );
   }
+  if (SILENT_CODES.has(state)) {
+    return <span className="badge bg-gray-100 text-gray-500">{SILENT_LABEL[state]}</span>;
+  }
+  const busy = state === 'sending';
+  return (
+    <button
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRequest(teamId); }}
+      disabled={busy}
+      className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1"
+    >
+      {busy
+        ? <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        : <HiUsers className="h-3.5 w-3.5" />}
+      {busy ? 'Sending…' : 'Request to join'}
+    </button>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Recommended card
+───────────────────────────────────────────── */
+
+function RecommendedCard({ rec, reqState, onRequest }) {
+  const needed   = stillNeeded(rec.requiredSkills, rec.matchedSkills);
+  const deadline = fmt(rec.deadline);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <HiUserGroup className="text-primary-600" /> Teams
-            </h1>
-            <p className="text-gray-600 mt-1">Find or create a team for your next hackathon</p>
-          </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn-primary flex items-center gap-2"
+    <div className="card flex flex-col gap-3 hover:border-primary-200 hover:shadow-md transition-all duration-150">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <Link
+            to={`/teams/${rec.teamId}`}
+            className="font-semibold text-gray-900 hover:text-primary-600 transition-colors"
           >
-            <HiPlus className="h-5 w-5" /> Create Team
-          </button>
+            {rec.name}
+          </Link>
+          {rec.competitionName && (
+            <p className="text-xs text-gray-500 mt-0.5 truncate">{rec.competitionName}</p>
+          )}
         </div>
+        {rec.status && <StatusBadge status={rec.status} />}
+      </div>
 
-        {/* Search and Filter */}
-        <div className="card mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-field pl-10"
-                placeholder="Search teams..."
-              />
-            </div>
-            <div className="relative">
-              <HiFilter className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                value={filterSkill}
-                onChange={(e) => setFilterSkill(e.target.value)}
-                className="input-field pl-10 w-full md:w-64"
-                placeholder="Filter by skill..."
-              />
-            </div>
-          </div>
+      {/* AI reason */}
+      {rec.matchReason && (
+        <div className="highlight-box">
+          <HiLightningBolt className="h-3.5 w-3.5 text-primary-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-primary-800 leading-relaxed">{rec.matchReason}</p>
         </div>
+      )}
 
-        {/* Teams Grid */}
-        {filteredTeams.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTeams.map(team => (
-              <Link
-                key={team._id}
-                to={`/teams/${team._id}`}
-                className="card hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-gray-900">{team.name}</h3>
-                  <span className={`badge ${team.isOpen ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {team.isOpen ? 'Open' : 'Closed'}
-                  </span>
-                </div>
-                
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                  {team.description || 'No description provided'}
-                </p>
-
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {team.requiredSkills?.slice(0, 3).map(skill => (
-                    <span key={skill} className="badge badge-skills text-xs">{skill}</span>
-                  ))}
-                  {team.requiredSkills?.length > 3 && (
-                    <span className="badge bg-gray-100 text-gray-600 text-xs">
-                      +{team.requiredSkills.length - 3} more
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="flex -space-x-2">
-                      {team.members?.slice(0, 3).map((member, i) => (
-                        <div 
-                          key={i}
-                          className="w-8 h-8 bg-primary-100 rounded-full border-2 border-white flex items-center justify-center"
-                        >
-                          <span className="text-xs text-primary-600 font-medium">
-                            {member.user?.name?.charAt(0) || '?'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <span className="text-sm text-gray-600">
-                      {team.members?.length || 0}/{team.maxMembers}
-                    </span>
-                  </div>
-                  
-                  {team.lookingFor?.length > 0 && (
-                    <div className="flex gap-1">
-                      {team.lookingFor.slice(0, 2).map(role => (
-                        <span key={role} className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">
-                          {role}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="card text-center py-12">
-            <HiUsers className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No teams found</h3>
-            <p className="text-gray-600 mb-4">Be the first to create a team!</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="btn-primary"
-            >
-              Create Team
-            </button>
-          </div>
-        )}
-
-        {/* Create Team Modal */}
-        {showCreateModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold">Create Team</h2>
-                  <button
-                    onClick={() => setShowCreateModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <HiX className="h-6 w-6" />
-                  </button>
-                </div>
-
-                <form onSubmit={handleCreateTeam} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Team Name
-                    </label>
-                    <input
-                      type="text"
-                      value={newTeam.name}
-                      onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}
-                      className="input-field"
-                      placeholder="Awesome Coders"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      value={newTeam.description}
-                      onChange={(e) => setNewTeam({ ...newTeam, description: e.target.value })}
-                      className="input-field"
-                      rows="3"
-                      placeholder="What's your project about?"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Max Members
-                    </label>
-                    <select
-                      value={newTeam.maxMembers}
-                      onChange={(e) => setNewTeam({ ...newTeam, maxMembers: parseInt(e.target.value) })}
-                      className="input-field"
-                    >
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                      <option value="4">4</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Required Skills
-                    </label>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {newTeam.requiredSkills.map(skill => (
-                        <span key={skill} className="badge badge-skills flex items-center gap-1">
-                          {skill}
-                          <button type="button" onClick={() => handleRemoveSkill(skill)}>
-                            <HiX className="h-3 w-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={newSkill}
-                        onChange={(e) => setNewSkill(e.target.value)}
-                        className="input-field flex-1"
-                        placeholder="Add a skill"
-                        onKeyPress={(e) => e.key === 'Enter' && handleAddSkill()}
-                      />
-                      <button type="button" onClick={handleAddSkill} className="btn-secondary">
-                        Add
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Looking For
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { value: 'frontend', label: 'Frontend' },
-                        { value: 'backend', label: 'Backend' },
-                        { value: 'designer', label: 'Designer' },
-                        { value: 'devops', label: 'DevOps' },
-                        { value: 'data', label: 'Data Science' },
-                        { value: 'any', label: 'Any' }
-                      ].map(option => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => handleLookingFor(option.value)}
-                          className={`px-3 py-1 rounded-full text-sm border transition ${
-                            newTeam.lookingFor.includes(option.value)
-                              ? 'bg-primary-600 text-white border-primary-600'
-                              : 'bg-white text-gray-700 border-gray-300'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button type="submit" className="w-full btn-primary mt-6">
-                    Create Team
-                  </button>
-                </form>
-              </div>
+      {/* Skills */}
+      <div className="space-y-2">
+        {rec.matchedSkills?.length > 0 && (
+          <div>
+            <p className="tag-label text-green-700">Your match</p>
+            <div className="flex flex-wrap gap-1">
+              {rec.matchedSkills.map((s) => (
+                <span key={s} className="badge bg-green-50 text-green-700 border border-green-200 text-xs">{s}</span>
+              ))}
             </div>
           </div>
         )}
+        {needed.length > 0 && (
+          <div>
+            <p className="tag-label text-gray-500">Still needed</p>
+            <div className="flex flex-wrap gap-1">
+              {needed.map((s) => (
+                <span key={s} className="badge badge-skills text-xs">{s}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-2 border-t border-gray-100 flex-wrap gap-2">
+        <div className="meta-row text-xs">
+          <span className="flex items-center gap-1">
+            <HiUsers className="h-3.5 w-3.5" />
+            {rec.memberCount ?? '?'}/{rec.maxMembers ?? '?'}
+          </span>
+          {deadline && (
+            <span className="flex items-center gap-1">
+              <HiClock className="h-3.5 w-3.5" /> {deadline}
+            </span>
+          )}
+        </div>
+        <JoinButton teamId={rec.teamId} state={reqState} onRequest={onRequest} />
       </div>
     </div>
   );
 }
 
-export default Teams;
+/* ─────────────────────────────────────────────
+   Browse card
+───────────────────────────────────────────── */
+
+function BrowseCard({ team, reqState, onRequest }) {
+  const deadline = fmt(team.deadline);
+
+  return (
+    <div className="card flex flex-col gap-3 hover:border-gray-300 hover:shadow-md transition-all duration-150">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <Link
+            to={`/teams/${team.teamId}`}
+            className="font-semibold text-gray-900 hover:text-primary-600 transition-colors"
+          >
+            {team.name}
+          </Link>
+          {team.competitionName && (
+            <p className="text-xs text-gray-500 mt-0.5 truncate">{team.competitionName}</p>
+          )}
+        </div>
+        <StatusBadge status={team.status} />
+      </div>
+
+      {/* Required skills */}
+      {team.requiredSkills?.length > 0 && (
+        <div>
+          <p className="tag-label text-gray-500">Required</p>
+          <div className="flex flex-wrap gap-1">
+            {team.requiredSkills.map((s) => (
+              <span
+                key={s.skill}
+                className={`badge text-xs ${
+                  s.priority === 'high' ? 'bg-red-50 text-red-700 border border-red-100' : 'badge-skills'
+                }`}
+              >
+                {s.skill}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Remaining gap */}
+      {team.remaining?.length > 0 && (
+        <div>
+          <p className="tag-label text-red-700">Still needed</p>
+          <div className="flex flex-wrap gap-1">
+            {team.remaining.map((s) => (
+              <span key={s} className="badge bg-red-50 text-red-700 border border-red-100 text-xs">{s}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-2 border-t border-gray-100 flex-wrap gap-2">
+        <div className="meta-row text-xs">
+          <span className="flex items-center gap-1">
+            <HiUsers className="h-3.5 w-3.5" />
+            {team.memberCount ?? '?'}/{team.maxMembers ?? '?'}
+          </span>
+          {deadline && (
+            <span className="flex items-center gap-1">
+              <HiClock className="h-3.5 w-3.5" /> {deadline}
+            </span>
+          )}
+        </div>
+        <JoinButton teamId={team.teamId} state={reqState} onRequest={onRequest} />
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Page
+───────────────────────────────────────────── */
+
+export default function Teams() {
+  const { user, profileComplete } = useAuth();
+
+  const [recommendations, setRecommendations] = useState([]);
+  const [browseTeams, setBrowseTeams]         = useState([]);
+  const [loading, setLoading]                 = useState(true);
+  const [requestedTeams, setRequestedTeams]   = useState({});
+
+  /* ── Load ── */
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [recRes, browseRes] = await Promise.all([
+        api.getRecommendedTeams(user.userId),
+        api.browseTeams(),
+      ]);
+      setRecommendations(recRes.recommendations || []);
+      setBrowseTeams(browseRes.teams || []);
+    } catch (e) {
+      toast.error(api.readError(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [user.userId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  /* ── Request ── */
+  const handleRequest = useCallback(async (teamId) => {
+    setRequestedTeams((prev) => ({ ...prev, [teamId]: 'sending' }));
+    try {
+      await api.sendJoinRequest(teamId);
+      toast.success('Join request sent!');
+      setRequestedTeams((prev) => ({ ...prev, [teamId]: 'sent' }));
+    } catch (e) {
+      const code = api.errorCode(e);
+      if (SILENT_CODES.has(code)) {
+        setRequestedTeams((prev) => ({ ...prev, [teamId]: code }));
+      } else {
+        toast.error(api.readError(e));
+        setRequestedTeams((prev) => ({ ...prev, [teamId]: 'idle' }));
+      }
+    }
+  }, []);
+
+  const recommendedIds      = new Set(recommendations.map((r) => r.teamId));
+  const browseDeduplicated  = browseTeams.filter((t) => !recommendedIds.has(t.teamId));
+
+  /* ── Loading ── */
+  if (loading) {
+    return (
+      <div className="page-shell flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-shell">
+      <div className="page-content">
+
+        {/* Page header */}
+        <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <HiUserGroup className="h-5 w-5 text-primary-600" /> Find a Team
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">AI recommends. You decide.</p>
+          </div>
+          <Link to="/teams/new" className="btn-secondary flex items-center gap-1.5">
+            <HiPlus className="h-4 w-4" /> Create a team
+          </Link>
+        </div>
+
+        {/* ── Recommended section ── */}
+        <div className="mb-10">
+          <div className="flex items-center gap-2 mb-1">
+            <HiLightningBolt className="h-4 w-4 text-primary-500" />
+            <h2 className="text-sm font-semibold text-gray-900">Recommended for you</h2>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">Based on your profile skills.</p>
+
+          {recommendations.length > 0 ? (
+            <div className="grid md:grid-cols-2 gap-4">
+              {recommendations.map((rec) => (
+                <RecommendedCard
+                  key={rec.teamId}
+                  rec={rec}
+                  reqState={requestedTeams[rec.teamId] || 'idle'}
+                  onRequest={handleRequest}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="card-sm text-center py-8">
+              {profileComplete ? (
+                <>
+                  <p className="text-sm font-medium text-gray-600">No recommended teams right now.</p>
+                  <p className="text-xs text-gray-400 mt-1">Check back later, or browse all open teams below.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-gray-600">Complete your profile to get recommendations.</p>
+                  <p className="text-xs text-gray-400 mt-1">Skills and institution are required for matching.</p>
+                  <Link to="/profile" className="btn-primary mt-4 inline-flex items-center gap-1.5">
+                    Complete profile <HiArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── All open teams ── */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <HiUsers className="h-4 w-4 text-gray-500" />
+            <h2 className="text-sm font-semibold text-gray-900">All open teams</h2>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">Every team currently recruiting.</p>
+
+          {browseDeduplicated.length > 0 ? (
+            <div className="grid md:grid-cols-2 gap-4">
+              {browseDeduplicated.map((team) => (
+                <BrowseCard
+                  key={team.teamId}
+                  team={team}
+                  reqState={requestedTeams[team.teamId] || 'idle'}
+                  onRequest={handleRequest}
+                />
+              ))}
+            </div>
+          ) : browseTeams.length > 0 ? (
+            <div className="card-sm text-center py-6">
+              <p className="text-sm text-gray-500">All open teams are already shown in your recommendations above.</p>
+            </div>
+          ) : (
+            <div className="card-sm text-center py-8">
+              <HiUsers className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm font-medium text-gray-600">No open teams at the moment.</p>
+              <Link to="/teams/new" className="btn-primary mt-4 inline-flex items-center gap-1.5">
+                Create a team <HiArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+}
