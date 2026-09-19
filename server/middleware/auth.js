@@ -1,20 +1,24 @@
 /**
  * Authentication.
  *
- * THE RULE (spec §12): the caller's identity is always derived from the
- * verified token, never from a request body field. A route that trusts
+ * THE RULE (spec §12): the caller's identity always comes from the verified
+ * token, never from a request body field. A route that trusts
  * `req.body.userId` lets anyone act as anyone else.
  *
- * Two modes:
- *   - local JWT (default) - works today, no AWS needed
- *   - Cognito             - set COGNITO_USER_POOL_ID; verifies the pool's JWT
+ * Two providers, chosen by AUTH_PROVIDER:
  *
- * The Cognito path is deliberately a seam rather than a rewrite: both end by
- * setting req.auth = { userId }, and nothing downstream knows the difference.
+ *   local    (default) bcrypt + JWT issued by this app. No AWS needed.
+ *   cognito            verifies the Cognito user pool's ID token.
+ *
+ * Both end at req.auth = { userId }, so nothing downstream knows or cares
+ * which one ran. Switching is one environment variable, and the local path
+ * stays deployed as a fallback.
  */
 
 const jwt = require('jsonwebtoken');
 const { fail, route } = require('../lib/errors');
+
+const provider = () => process.env.AUTH_PROVIDER || 'local';
 
 function bearer(req) {
   const header = req.header('Authorization') || '';
@@ -38,7 +42,8 @@ function signingSecret() {
 
 function verifyLocal(token) {
   try {
-    return jwt.verify(token, signingSecret());
+    const claims = jwt.verify(token, signingSecret());
+    return { userId: claims.userId || claims.sub, claims };
   } catch {
     return null;
   }
@@ -48,8 +53,8 @@ function verifyLocal(token) {
  * Populates req.auth = { userId } or fails with UNAUTHENTICATED.
  *
  * Dev escape hatch: outside production, `x-dev-user: user_456` stands in for a
- * real token so the frontend can be built against seeded data before Cognito
- * exists. It is ignored when NODE_ENV=production.
+ * real token so the frontend can be built against seeded data. Ignored when
+ * NODE_ENV=production - verified against the deployed API.
  */
 const requireAuth = route(async (req, res, next) => {
   if (process.env.NODE_ENV !== 'production') {
@@ -63,20 +68,26 @@ const requireAuth = route(async (req, res, next) => {
   const token = bearer(req);
   if (!token) fail('UNAUTHENTICATED');
 
-  const claims = verifyLocal(token);
-  if (!claims) fail('UNAUTHENTICATED');
+  let identity;
+  if (provider() === 'cognito') {
+    const { verifyCognitoToken } = require('../auth/cognito');
+    identity = await verifyCognitoToken(token);
+  } else {
+    identity = verifyLocal(token);
+  }
 
-  // Cognito puts the subject in `sub`; our local tokens use `userId`.
-  const userId = claims.userId || claims.sub;
-  if (!userId) fail('UNAUTHENTICATED');
+  if (!identity?.userId) fail('UNAUTHENTICATED');
 
-  req.auth = { userId, claims };
+  req.auth = identity;
   return next();
 });
 
-/** Issue a session token. Replaced by Cognito's own login. */
+/** Issue a local session token. Unused when AUTH_PROVIDER=cognito. */
 function issueToken(userId) {
   return jwt.sign({ userId }, signingSecret(), { expiresIn: '7d' });
 }
 
-module.exports = { requireAuth, issueToken };
+/** True when this app owns registration and login itself. */
+const localAuthEnabled = () => provider() === 'local';
+
+module.exports = { requireAuth, issueToken, localAuthEnabled };

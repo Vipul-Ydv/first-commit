@@ -14,7 +14,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { randomUUID } = require('crypto');
 const { fail, route } = require('../lib/errors');
-const { issueToken, requireAuth } = require('../middleware/auth');
+const { issueToken, requireAuth, localAuthEnabled } = require('../middleware/auth');
 const { publicUser } = require('../lib/hydrate');
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -22,7 +22,19 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 module.exports = function authRoutes({ store }) {
   const router = express.Router();
 
-  router.post('/register', route(async (req, res) => {
+  /**
+   * With AUTH_PROVIDER=cognito these endpoints are off. Tokens they issued
+   * would not verify anyway, but leaving a second sign-up path live is a
+   * confusing thing to hand an attacker - one door in, not two.
+   */
+  const localOnly = route(async (req, res, next) => {
+    if (!localAuthEnabled()) {
+      fail('NOT_FOUND', 'This deployment uses Cognito. Sign in through Cognito instead.');
+    }
+    next();
+  });
+
+  router.post('/register', localOnly, route(async (req, res) => {
     const email = String(req.body?.email || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
     const name = String(req.body?.name || '').trim();
@@ -62,7 +74,7 @@ module.exports = function authRoutes({ store }) {
     res.status(201).json({ token: issueToken(user.userId), user: publicUser(user) });
   }));
 
-  router.post('/login', route(async (req, res) => {
+  router.post('/login', localOnly, route(async (req, res) => {
     const email = String(req.body?.email || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
 

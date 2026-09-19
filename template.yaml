@@ -24,6 +24,11 @@ Parameters:
     Type: String
     Default: ''
     Description: Copy exactly from the Bedrock model page. Usually a cross-region inference profile id.
+  AuthProvider:
+    Type: String
+    Default: local
+    AllowedValues: [local, cognito]
+    Description: local uses bcrypt + JWT in this app. cognito verifies the user pool's tokens instead. Both are deployed; this only picks which one the API accepts.
 
 Globals:
   Function:
@@ -56,6 +61,9 @@ Resources:
           NODE_ENV: production
           STORE: dynamo
           JWT_SECRET: !Ref JwtSecret
+          AUTH_PROVIDER: !Ref AuthProvider
+          COGNITO_USER_POOL_ID: !Ref UserPool
+          COGNITO_CLIENT_ID: !Ref UserPoolClient
           EXTRACTION_PROVIDER: !Ref ExtractionProvider
           BEDROCK_MODEL_ID: !Ref BedrockModelId
           BEDROCK_REGION: us-east-1
@@ -88,6 +96,50 @@ Resources:
             ApiId: !Ref Api
             Path: /
             Method: ANY
+
+  # ------------------------------------------------------------------ #
+  # Cognito. Created regardless of AuthProvider so the frontend can be
+  # wired and tested against it without a redeploy; the API only starts
+  # trusting its tokens when AuthProvider=cognito.
+  # ------------------------------------------------------------------ #
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: hackmatch-users
+      # Sign in with email rather than a separate username.
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      Schema:
+        - Name: name
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: hackmatch-web
+      # No secret: this client runs in a browser, where a secret cannot be kept.
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      SupportedIdentityProviders: [COGNITO]
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: days
+        IdToken: days
+        RefreshToken: days
 
   # PAY_PER_REQUEST so there is no idle cost and nothing to capacity-plan.
   UsersTable:
@@ -124,3 +176,12 @@ Outputs:
   ApiUrl:
     Description: Base URL - set this as REACT_APP_API_URL in Amplify
     Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com'
+  UserPoolId:
+    Description: Set as REACT_APP_COGNITO_USER_POOL_ID in Amplify
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: Set as REACT_APP_COGNITO_CLIENT_ID in Amplify
+    Value: !Ref UserPoolClient
+  CognitoRegion:
+    Description: Set as REACT_APP_COGNITO_REGION in Amplify
+    Value: !Ref AWS::Region
