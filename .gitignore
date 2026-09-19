@@ -25,3 +25,7 @@ Thumbs.db
 
 # Lockfiles (hackathon - keep the diff readable)
 package-lock.json
+
+# SAM build artifacts
+.aws-sam/
+samconfig.toml
