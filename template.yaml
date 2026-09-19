@@ -36,7 +36,11 @@ Resources:
   Api:
     Type: AWS::Serverless::HttpApi
     Properties:
-      StageName: prod
+      # $default, not a named stage. A named stage prefixes the request path
+      # with the stage name, so Lambda receives /prod/health and Express - which
+      # only knows about /health - returns 404 for every route. $default serves
+      # from the domain root and the paths match the app exactly.
+      StageName: $default
       CorsConfiguration:
         AllowOrigins: ['*']
         AllowHeaders: [Content-Type, Authorization]
@@ -119,4 +123,4 @@ Resources:
 Outputs:
   ApiUrl:
     Description: Base URL - set this as REACT_APP_API_URL in Amplify
-    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod'
+    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com'
