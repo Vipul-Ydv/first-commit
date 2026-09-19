@@ -80,8 +80,13 @@ module.exports = function profileRoutes({ store }) {
     const user = await store.users.get(req.params.id);
     if (!user) fail('NOT_FOUND');
 
-    // Owners see their own full record; everyone else sees the public view.
-    if (user.userId === req.auth.userId) return res.json(user);
+    // Owners see their own full record - but never the credential verifier.
+    // `user` is the raw stored row, so returning it directly sent passwordHash
+    // to the browser every time the profile page loaded.
+    if (user.userId === req.auth.userId) {
+      const { passwordHash, ...safe } = user;
+      return res.json(safe);
+    }
     res.json(publicUser(user));
   }));
 
