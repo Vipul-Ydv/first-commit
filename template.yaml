@@ -29,10 +29,17 @@ Parameters:
     Default: local
     AllowedValues: [local, cognito]
     Description: local uses bcrypt + JWT in this app. cognito verifies the user pool's tokens instead. Both are deployed; this only picks which one the API accepts.
+  AlarmEmail:
+    Type: String
+    Default: ''
+    Description: Optional. An address to email when an alarm fires. Leave blank and alarms still show state in the console, they just do not notify anyone.
+
+Conditions:
+  HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, '']]
 
 Globals:
   Function:
-    Runtime: nodejs20.x
+    Runtime: nodejs24.x
     Timeout: 20
     MemorySize: 512
     Architectures: [arm64]
@@ -50,6 +57,21 @@ Resources:
         AllowOrigins: ['*']
         AllowHeaders: [Content-Type, Authorization]
         AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
+      DefaultRouteSettings:
+        # A single bad client should not be able to exhaust Lambda concurrency
+        # or run up the DynamoDB bill. Generous for a demo, finite on purpose.
+        ThrottlingRateLimit: 100
+        ThrottlingBurstLimit: 200
+        DetailedMetricsEnabled: true
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiAccessLogs.Arn
+        Format: '{"time":"$context.requestTime","id":"$context.requestId","method":"$context.httpMethod","path":"$context.path","status":"$context.status","latency":"$context.responseLatency","ip":"$context.identity.sourceIp"}'
+
+  ApiAccessLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/apigateway/hackmatch
+      RetentionInDays: 7
 
   ApiFunction:
     Type: AWS::Serverless::Function
@@ -67,6 +89,7 @@ Resources:
           EXTRACTION_PROVIDER: !Ref ExtractionProvider
           BEDROCK_MODEL_ID: !Ref BedrockModelId
           BEDROCK_REGION: us-east-1
+          DOCUMENTS_BUCKET: !Ref DocumentsBucket
           TABLE_USERS: !Ref UsersTable
           TABLE_COMPETITIONS: !Ref CompetitionsTable
           TABLE_TEAMS: !Ref TeamsTable
@@ -79,6 +102,14 @@ Resources:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamsTable }
         - DynamoDBCrudPolicy: { TableName: !Ref JoinRequestsTable }
         - DynamoDBCrudPolicy: { TableName: !Ref InvitationsTable }
+        # Explicit Get/Put on the one prefix these routes use. S3CrudPolicy
+        # would also grant Delete and ListBucket, so a compromised function
+        # could enumerate or destroy every uploaded document - which is not
+        # what "least privilege" above is supposed to mean.
+        - Statement:
+            - Effect: Allow
+              Action: [s3:GetObject, s3:PutObject]
+              Resource: !Sub '${DocumentsBucket.Arn}/competitions/*'
         - Statement:
             - Effect: Allow
               Action: [bedrock:InvokeModel]
@@ -141,6 +172,33 @@ Resources:
         IdToken: days
         RefreshToken: days
 
+  # Uploaded competition documents. Private - reached only through presigned
+  # URLs that expire in minutes, never public-read.
+  DocumentsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      CorsConfiguration:
+        # The browser PUTs straight here, so the upload never passes through
+        # Lambda and a 10 MB deck cannot hit the 6 MB payload limit.
+        CorsRules:
+          - AllowedOrigins: ['*']
+            AllowedMethods: [PUT, GET, HEAD]
+            AllowedHeaders: ['*']
+            MaxAge: 3000
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-uploads
+            Status: Enabled
+            ExpirationInDays: 30
+
   # PAY_PER_REQUEST so there is no idle cost and nothing to capacity-plan.
   UsersTable:
     Type: AWS::Serverless::SimpleTable
@@ -172,6 +230,151 @@ Resources:
       PrimaryKey: { Name: invitationId, Type: String }
       TableName: HackMatch-Invitations
 
+  # ------------------------------------------------------------------ #
+  # Monitoring
+  # ------------------------------------------------------------------ #
+
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Condition: HasAlarmEmail
+    Properties:
+      TopicName: hackmatch-alarms
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref AlarmEmail
+
+  # The API is returning errors it should not be.
+  ApiServerErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: hackmatch-api-5xx
+      AlarmDescription: The API returned 5xx responses - the app is failing, not the caller.
+      Namespace: AWS/ApiGateway
+      MetricName: 5xx
+      Dimensions:
+        - Name: ApiId
+          Value: !Ref Api
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasAlarmEmail, [!Ref AlarmTopic], !Ref 'AWS::NoValue']
+
+  LambdaErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: hackmatch-lambda-errors
+      AlarmDescription: The function threw. Usually a bug or a missing environment variable.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ApiFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasAlarmEmail, [!Ref AlarmTopic], !Ref 'AWS::NoValue']
+
+  # Slow enough that the UI feels broken.
+  ApiLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: hackmatch-api-slow
+      AlarmDescription: p99 latency above 3 seconds.
+      Namespace: AWS/ApiGateway
+      MetricName: Latency
+      Dimensions:
+        - Name: ApiId
+          Value: !Ref Api
+      ExtendedStatistic: p99
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 3000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [HasAlarmEmail, [!Ref AlarmTopic], !Ref 'AWS::NoValue']
+
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: HackMatch
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric", "x": 0, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "title": "API traffic",
+                "region": "${AWS::Region}",
+                "stat": "Sum", "period": 300,
+                "metrics": [
+                  [ "AWS/ApiGateway", "Count", "ApiId", "${Api}", { "label": "requests" } ],
+                  [ ".", "4xx", ".", ".", { "label": "4xx (caller error)" } ],
+                  [ ".", "5xx", ".", ".", { "label": "5xx (our fault)" } ]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "title": "API latency",
+                "region": "${AWS::Region}",
+                "period": 300,
+                "metrics": [
+                  [ "AWS/ApiGateway", "Latency", "ApiId", "${Api}", { "stat": "p50", "label": "p50" } ],
+                  [ "...", { "stat": "p99", "label": "p99" } ]
+                ],
+                "annotations": { "horizontal": [ { "label": "3s alarm", "value": 3000 } ] }
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "title": "Lambda",
+                "region": "${AWS::Region}",
+                "stat": "Sum", "period": 300,
+                "metrics": [
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${ApiFunction}", { "label": "invocations" } ],
+                  [ ".", "Errors", ".", ".", { "label": "errors" } ],
+                  [ ".", "Throttles", ".", ".", { "label": "throttles" } ],
+                  [ ".", "ConcurrentExecutions", ".", ".", { "stat": "Maximum", "label": "peak concurrency" } ]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "title": "Lambda duration - cold starts show here",
+                "region": "${AWS::Region}",
+                "period": 300,
+                "metrics": [
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${ApiFunction}", { "stat": "Average", "label": "avg" } ],
+                  [ "...", { "stat": "Maximum", "label": "max" } ]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 12, "width": 24, "height": 6,
+              "properties": {
+                "title": "DynamoDB capacity consumed",
+                "region": "${AWS::Region}",
+                "stat": "Sum", "period": 300,
+                "metrics": [
+                  [ "AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "${UsersTable}", { "label": "Users read" } ],
+                  [ ".", "ConsumedWriteCapacityUnits", ".", ".", { "label": "Users write" } ],
+                  [ ".", "ConsumedReadCapacityUnits", ".", "${TeamsTable}", { "label": "Teams read" } ],
+                  [ ".", "ConsumedWriteCapacityUnits", ".", ".", { "label": "Teams write" } ]
+                ]
+              }
+            }
+          ]
+        }
+
 Outputs:
   ApiUrl:
     Description: Base URL - set this as REACT_APP_API_URL in Amplify
@@ -185,3 +388,6 @@ Outputs:
   CognitoRegion:
     Description: Set as REACT_APP_COGNITO_REGION in Amplify
     Value: !Ref AWS::Region
+  DashboardUrl:
+    Description: CloudWatch dashboard - open this during the demo
+    Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards/dashboard/HackMatch'

@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 import Navbar from './components/Navbar';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -38,6 +39,8 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           <Navbar />
           <Toaster position="top-right" />
+          {/* A thrown render error should show a message, not a blank page. */}
+          <ErrorBoundary>
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
@@ -59,6 +62,7 @@ function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </ErrorBoundary>
         </div>
       </Router>
     </AuthProvider>
