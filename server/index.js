@@ -13,13 +13,14 @@
 require('dotenv').config();
 
 const { createApp } = require('./app');
-const { createMemoryStore } = require('./store/memory');
+const { createStore } = require('./store');
 const { seed } = require('./store/seed');
 
 const PORT = process.env.PORT || 5000;
 
 (async () => {
-  const store = createMemoryStore();
+  const { store, kind } = createStore();
+  console.log(`[store] ${kind}`);
 
   // Seeded by default in development so the recommendation screens have
   // something to show. SEED=false to start empty.

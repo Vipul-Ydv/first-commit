@@ -57,13 +57,20 @@ module.exports = function profileRoutes({ store }) {
       fail('VALIDATION_FAILED', 'Name, institution and at least one skill are required.');
     }
 
-    // Identity comes from the token, never the body (spec §12).
+    // Merge onto the existing record rather than replacing it. put() writes a
+    // whole item, and `profile` deliberately has no auth fields - so a plain
+    // put here wiped passwordHash and locked the user out of their own
+    // account the moment they completed their profile.
+    const existing = (await store.users.get(req.auth.userId)) || {};
+
     const saved = await store.users.put({
+      ...existing,
       ...profile,
       userId: req.auth.userId,
-      email: req.auth.claims?.email || null,
-      emailVerified: Boolean(req.auth.claims?.email_verified) || req.auth.dev === true,
-      createdAt: new Date().toISOString(),
+      email: existing.email || req.auth.email || req.auth.claims?.email || null,
+      emailVerified:
+        existing.emailVerified ?? (Boolean(req.auth.emailVerified) || req.auth.dev === true),
+      createdAt: existing.createdAt || new Date().toISOString(),
     });
 
     res.status(201).json(publicUser(saved));
@@ -89,8 +96,11 @@ module.exports = function profileRoutes({ store }) {
       fail('VALIDATION_FAILED', 'Name, institution and at least one skill are required.');
     }
 
-    const saved = await store.users.update(req.params.id, profile);
-    res.json(saved);
+    // update() merges, so auth fields survive - but never let the body set them.
+    const { passwordHash, email, emailVerified, ...safe } = profile;
+    const saved = await store.users.update(req.params.id, safe);
+    const { passwordHash: _, ...out } = saved;
+    res.json(out);
   }));
 
   return router;
