@@ -22,3 +22,6 @@ Thumbs.db
 # Archives / junk
 *.zip
 *.tar.gz
+
+# Lockfiles (hackathon - keep the diff readable)
+package-lock.json
