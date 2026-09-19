@@ -89,6 +89,7 @@ Resources:
           EXTRACTION_PROVIDER: !Ref ExtractionProvider
           BEDROCK_MODEL_ID: !Ref BedrockModelId
           BEDROCK_REGION: us-east-1
+          DOCUMENTS_BUCKET: !Ref DocumentsBucket
           TABLE_USERS: !Ref UsersTable
           TABLE_COMPETITIONS: !Ref CompetitionsTable
           TABLE_TEAMS: !Ref TeamsTable
@@ -101,6 +102,7 @@ Resources:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamsTable }
         - DynamoDBCrudPolicy: { TableName: !Ref JoinRequestsTable }
         - DynamoDBCrudPolicy: { TableName: !Ref InvitationsTable }
+        - S3CrudPolicy: { BucketName: !Ref DocumentsBucket }
         - Statement:
             - Effect: Allow
               Action: [bedrock:InvokeModel]
@@ -162,6 +164,33 @@ Resources:
         AccessToken: days
         IdToken: days
         RefreshToken: days
+
+  # Uploaded competition documents. Private - reached only through presigned
+  # URLs that expire in minutes, never public-read.
+  DocumentsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      CorsConfiguration:
+        # The browser PUTs straight here, so the upload never passes through
+        # Lambda and a 10 MB deck cannot hit the 6 MB payload limit.
+        CorsRules:
+          - AllowedOrigins: ['*']
+            AllowedMethods: [PUT, GET, HEAD]
+            AllowedHeaders: ['*']
+            MaxAge: 3000
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-uploads
+            Status: Enabled
+            ExpirationInDays: 30
 
   # PAY_PER_REQUEST so there is no idle cost and nothing to capacity-plan.
   UsersTable:
