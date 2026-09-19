@@ -9,7 +9,12 @@ Parameters:
   JwtSecret:
     Type: String
     NoEcho: true
-    Description: Signing secret for session tokens. Generate a random one; do not reuse a value from source control.
+    # MinLength so an empty value fails at changeset time with a clear error.
+    # Without it CloudFormation accepts "" and the stack deploys with no
+    # signing secret, which is silent and much worse than a failed deploy.
+    MinLength: 32
+    MaxLength: 256
+    Description: Signing secret for session tokens, at least 32 characters. Generate a random one; never reuse a value from source control.
   ExtractionProvider:
     Type: String
     Default: rules
