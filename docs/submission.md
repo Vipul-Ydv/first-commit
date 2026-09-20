@@ -77,7 +77,21 @@ attending an event where they know nobody.
 ## How did you use AWS in your project?
 
 ```
-Ship It track. Everything below is deployed and serving traffic.
+BUILD IT - AWS open source stack
+
+AWS SAM (Serverless Application Model) - the whole stack is one open source
+template, and the SAM CLI does the build and deploy. sam validate --lint also
+caught that the Node runtime we had picked was already deprecated.
+
+AWS SDK for JavaScript v3 - the modular open source SDK. We pull in only the
+clients we use: client-dynamodb, lib-dynamodb, client-s3, s3-request-presigner,
+client-comprehend and client-bedrock-runtime. Per-client packages instead of
+one monolith keeps the Lambda bundle small, which matters for cold starts.
+
+AWS Amplify - open source hosting and CI, building the React frontend from
+GitHub on every merge with no pipeline configuration written by hand.
+
+SHIP IT - AWS services. Everything below is deployed and serving traffic.
 
 AWS Lambda — the entire API. An ordinary Express app wrapped with
 serverless-http rather than one function per route, so the same application
