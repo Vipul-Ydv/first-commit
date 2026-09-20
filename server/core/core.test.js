@@ -13,7 +13,7 @@ const path = require('path');
 const { canonical, intersect, subtract } = require('./skills');
 const { isEligible } = require('./eligibility');
 const { computeGap, recruitmentStatus } = require('./gap');
-const { rankCandidates, rankTeams } = require('./matching');
+const { rankCandidates, rankTeams, teamInstitution } = require('./matching');
 
 const MOCKS = path.join(__dirname, '..', '..', 'client', 'src', 'api', 'mock');
 const load = (f) => JSON.parse(fs.readFileSync(path.join(MOCKS, f), 'utf8'));
@@ -153,6 +153,26 @@ test('every missingSkillsFilled entry is really in the gap', () => {
   for (const r of candOut.recommendations) {
     for (const s of r.missingSkillsFilled) assert.ok(candOut.remainingGap.includes(s), `${s} not in gap`);
   }
+});
+test("a team's institution is its members', and null when they differ", () => {
+  assert.strictEqual(teamInstitution([{ collegeName: 'BTKIT' }, { collegeName: 'BTKIT' }]), 'BTKIT');
+  // Null rather than the first one: a mixed team has no campus, and claiming
+  // one would tell a browsing student the opposite of the truth.
+  assert.strictEqual(teamInstitution([{ collegeName: 'BTKIT' }, { collegeName: 'IIT' }]), null);
+  assert.strictEqual(teamInstitution([]), null);
+  assert.strictEqual(teamInstitution([{ organizationName: 'Acme' }]), 'Acme');
+});
+test('same campus separates two otherwise identical candidates', () => {
+  // An open competition, so neither is filtered out - this has to be the
+  // ranking doing the work, not eligibility.
+  const open = { ...competition, eligibility: { studentOnly: true, institutionRestriction: false } };
+  const here = { userId: 'u_here', name: 'Here', userType: 'student', collegeName: 'BTKIT',
+                 skills: aisha.skills, availability: aisha.availability };
+  const away = { ...here, userId: 'u_away', name: 'Away', collegeName: 'Elsewhere' };
+  const out = rankCandidates({ team, members: team.members, candidates: [away, here], competition: open });
+  const ids = out.recommendations.map((r) => r.userId);
+  assert.ok(ids.indexOf('u_here') < ids.indexOf('u_away'), `got order ${ids}`);
+  assert.strictEqual(out.recommendations[0].sameInstitution, true);
 });
 test('GATE: an ineligible candidate never appears', () => {
   const outsider = { ...aisha, userId: 'user_999', collegeName: 'Other College' };

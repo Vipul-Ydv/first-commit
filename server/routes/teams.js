@@ -3,7 +3,7 @@ const { randomUUID } = require('crypto');
 const { fail, route } = require('../lib/errors');
 const { requireAuth } = require('../middleware/auth');
 const { hydrateTeam, summariseTeam, loadMembers, teamsWithMembers, competitionsById, publicUser } = require('../lib/hydrate');
-const { rankCandidates, rankTeams } = require('../core/matching');
+const { rankCandidates, rankTeams, sameInstitution } = require('../core/matching');
 const { computeGap, recruitmentStatus } = require('../core/gap');
 const { isEligible } = require('../core/eligibility');
 
@@ -75,8 +75,19 @@ module.exports = function teamRoutes({ store }) {
   router.get('/', requireAuth, route(async (req, res) => {
     const teams = await store.teams.list();
     const rows = await Promise.all(teams.map((t) => summariseTeam(store, t)));
+
+    // Flagged here rather than in summariseTeam, which has no viewer. The
+    // recommendation list already carries this, and a browse card that stayed
+    // silent about it would look like the two lists disagreed.
+    const me = await store.users.get(req.auth.userId);
+    const myCollege = me?.collegeName || me?.organizationName || null;
+    const marked = rows.map((t) => ({
+      ...t,
+      sameInstitution: sameInstitution(t.collegeName, myCollege),
+    }));
+
     // Full and closed teams are not joinable, so they are not browsable.
-    res.json({ teams: rows.filter((t) => t.status !== 'full' && t.status !== 'closed') });
+    res.json({ teams: marked.filter((t) => t.status !== 'full' && t.status !== 'closed') });
   }));
 
   router.get('/:id', requireAuth, route(async (req, res) => {

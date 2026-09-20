@@ -5,7 +5,7 @@ import * as api from '../api';
 import toast from 'react-hot-toast';
 import {
   HiUsers, HiPlus, HiLightningBolt, HiUserGroup,
-  HiClock, HiCheckCircle, HiArrowRight,
+  HiClock, HiCheckCircle, HiArrowRight, HiAcademicCap,
 } from 'react-icons/hi';
 import usePendingInvites from '../hooks/usePendingInvites';
 import InviteResponse from '../components/InviteResponse';
@@ -28,6 +28,28 @@ const SILENT_LABEL = {
   TEAM_FULL:         'Team is full',
   NOT_ELIGIBLE:      'Not eligible',
 };
+
+/**
+ * Which campus a team is on.
+ *
+ * A mixed team has no single institution and the API sends null, so nothing
+ * renders rather than a guess. The badge on your own college is the point of
+ * the whole thing: for a college-level event you want to spot those first.
+ */
+function CollegeLine({ collegeName, sameInstitution }) {
+  if (!collegeName) return null;
+  return (
+    <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1 flex-wrap">
+      <HiAcademicCap className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+      <span className="truncate">{collegeName}</span>
+      {sameInstitution && (
+        <span className="badge bg-primary-50 text-primary-700 border border-primary-100 text-[10px] px-1.5 py-0">
+          Your college
+        </span>
+      )}
+    </p>
+  );
+}
 
 function StatusBadge({ status }) {
   const cfg = STATUS_CFG[status] || { label: status, cls: 'bg-gray-100 text-gray-500' };
@@ -98,6 +120,7 @@ function RecommendedCard({ rec, reqState, onRequest, invitation, onInviteDone })
           {rec.competitionName && (
             <p className="text-xs text-gray-500 mt-0.5 truncate">{rec.competitionName}</p>
           )}
+          <CollegeLine collegeName={rec.collegeName} sameInstitution={rec.sameInstitution} />
         </div>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
           {rec.status && <StatusBadge status={rec.status} />}
@@ -181,6 +204,7 @@ function BrowseCard({ team, reqState, onRequest, invitation, onInviteDone }) {
           {team.competitionName && (
             <p className="text-xs text-gray-500 mt-0.5 truncate">{team.competitionName}</p>
           )}
+          <CollegeLine collegeName={team.collegeName} sameInstitution={team.sameInstitution} />
         </div>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
           <StatusBadge status={team.status} />

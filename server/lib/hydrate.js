@@ -8,6 +8,7 @@
  */
 
 const { computeGap, recruitmentStatus } = require('../core/gap');
+const { teamInstitution } = require('../core/matching');
 
 /** Public view of a user. Never leaks anything the profile owner did not share. */
 function publicUser(user) {
@@ -88,6 +89,7 @@ async function hydrateTeam(store, team, viewerId = null) {
     status: recruitmentStatus(members.length, team.maxMembers, team.closed),
     competition,
     requiredSkills: team.requiredSkills || [],
+    collegeName: teamInstitution(members),
     members: members.map((m) => ({
       ...publicUser(m),
       ...(isTeammate ? { email: m.email } : {}),
@@ -109,6 +111,8 @@ async function summariseTeam(store, team) {
     name: team.name,
     competitionName: competition?.name || null,
     deadline: competition?.deadline || null,
+    // Whose campus is this team on? Null when the members are mixed.
+    collegeName: teamInstitution(members),
     memberCount: members.length,
     maxMembers: team.maxMembers,
     status: recruitmentStatus(members.length, team.maxMembers, team.closed),
