@@ -38,13 +38,21 @@ async function loadMembers(store, team) {
   return rows.filter(Boolean);
 }
 
-/** Full team view: competition, members, gap, computed status. */
-async function hydrateTeam(store, team) {
+/**
+ * Full team view: competition, members, gap, computed status.
+ *
+ * `viewerId` decides whether contact details come back. Matching two people
+ * and then leaving them no way to reach each other is where a team finder
+ * quietly fails - but a stranger browsing an open team has agreed to nothing,
+ * so the email only travels between people already on the same roster.
+ */
+async function hydrateTeam(store, team, viewerId = null) {
   if (!team) return null;
 
   const members = await loadMembers(store, team);
   const competition = team.competitionId ? await store.competitions.get(team.competitionId) : null;
   const skillGap = computeGap(team.requiredSkills, members);
+  const isTeammate = viewerId != null && (team.memberIds || []).includes(viewerId);
 
   return {
     teamId: team.teamId,
@@ -56,6 +64,7 @@ async function hydrateTeam(store, team) {
     requiredSkills: team.requiredSkills || [],
     members: members.map((m) => ({
       ...publicUser(m),
+      ...(isTeammate ? { email: m.email } : {}),
       isLeader: m.userId === team.leaderId,
     })),
     skillGap,
