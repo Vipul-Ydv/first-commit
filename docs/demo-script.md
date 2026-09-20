@@ -23,7 +23,7 @@ segment.
 Frontend   https://master.d2vspho7z11qj5.amplifyapp.com
 Dashboard  https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards/dashboard/HackMatch
 Diagram    docs/demo/architecture.svg          (open in a browser, full screen)
-Upload     docs/demo/AI-Innovation-Challenge-2026.pptx
+Upload     docs/demo/AI-Innovation-Challenge-2026.pdf
 ```
 
 Demo logins: any seeded user, password `hackmatch2026`
@@ -39,7 +39,7 @@ Demo logins: any seeded user, password `hackmatch2026`
 - [ ] **Silent run-through first.** Do not record the first attempt.
 - [ ] That run-through fills the dashboard — wait ~5 min, then set it to **1h**
 - [ ] Diagram open full screen in its own tab, zoomed to fit
-- [ ] `.pptx` on the desktop, one click away
+- [ ] the PDF on the desktop, one click away
 - [ ] Close Slack, WhatsApp, email
 
 ---
@@ -61,7 +61,7 @@ Demo logins: any seeded user, password `hackmatch2026`
 
 ## Upload the brief *(0:20)*
 
-*[Create a Team → upload the .pptx]*
+*[Create a Team → upload the PDF]*
 
 > "Every hackathon sends a deck or a PDF. Rather than retyping it, upload the
 > file. We pull out six things — name, organiser, deadline, team size,
