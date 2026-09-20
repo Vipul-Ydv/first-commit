@@ -1,6 +1,6 @@
 # Demo Script — 3 minutes
 
-Written for Vidushi to record. Balanced against what the submission form asks
+Balanced against what the submission form asks
 the video to cover:
 **about the project · tech stack and architecture · how you used AWS · learning.**
 
@@ -18,35 +18,41 @@ segment.
 
 ---
 
-## What you need
+## Tabs, in this order
 
 ```
-Frontend    https://master.d2vspho7z11qj5.amplifyapp.com
-Diagram     docs/demo/architecture.svg                  (browser, full screen)
-Upload file docs/demo/AI-Innovation-Challenge-2026.pdf
-Dashboard   a screenshot Vipul sends you — you cannot open the AWS console,
-            it is his account
+1  App        https://master.d2vspho7z11qj5.amplifyapp.com   ← logged OUT
+2  The brief  docs/demo/AI-Innovation-Challenge-2026.pdf
+3  Diagram    docs/demo/architecture.svg
+4  Dashboard  https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards/dashboard/HackMatch
 ```
 
-Demo logins: any seeded user, password `hackmatch2026`
-(`aisha@btkit.ac.in`, `neha@btkit.ac.in`)
+Plus an **incognito window** signed in as `aisha@btkit.ac.in` — the invite →
+accept needs two accounts, and two tabs in the same window share storage and
+will log each other out mid-take.
 
-Showing invite → accept needs **two accounts**. Use two windows, or one normal
-and one incognito, so you are not logging in and out mid-take.
+Logins: any seeded user, password `hackmatch2026`
 
-**Three tabs, in this order:** app · diagram · dashboard screenshot
+```
+vipul@btkit.ac.in   the leader      AWS, Node.js
+aisha@btkit.ac.in   the candidate   Python, Machine Learning, AWS
+neha@btkit.ac.in    the other side  UI/UX, Figma
+rohit@other.ac.in   never log in as him — he is the one eligibility hides
+```
 
 ---
 
 ## Before you record
 
-- [ ] Log out of the app so you start on the landing page
 - [ ] **Silent run-through first.** Do not record the first attempt.
-- [ ] Tell Vipul when the run-through is done — it puts data on the dashboard.
-      He waits ~5 min, screenshots it, and sends it. Open that image in tab 3.
-- [ ] Diagram open full screen in its own tab, zoomed to fit
-- [ ] The PDF on the desktop, one click away
-- [ ] Second browser window (or incognito) signed in as a different user
+- [ ] Ask Claude to re-seed afterwards — the run-through leaves a practice team
+      in the list, and it will be visible on camera
+- [ ] That run-through also fills the dashboard. Wait ~5 min, then set tab 4
+      to **1h** — on 3h the lines have gaps and look like an outage
+- [ ] Log out of tab 1 so the video opens on the landing page
+- [ ] Incognito window signed in as Aisha, sitting on her dashboard
+- [ ] `Ctrl+Shift+B` to hide the bookmarks bar; close every other tab
+- [ ] Record 15 seconds and play it back — confirm the mic is actually on
 - [ ] Close Slack, WhatsApp, email
 
 ---
@@ -68,7 +74,8 @@ and one incognito, so you are not logging in and out mid-take.
 
 ## Upload the brief *(0:20)*
 
-*[Create a Team → upload the PDF]*
+*[Tab 2 — show the PDF for two seconds, so they see it is a real document.
+Then back to tab 1: Create a Team → upload it.]*
 
 > "Every hackathon sends a deck or a PDF. Rather than retyping it, upload the
 > file. We pull out six things — name, organiser, deadline, team size,
@@ -132,17 +139,13 @@ and one incognito, so you are not logging in and out mid-take.
 > "**IAM** is least privilege — each table granted individually, S3 scoped to a
 > single prefix, no wildcards."
 
-*[Switch to tab 3 — the dashboard screenshot. Leave it up for about 8 seconds.]*
+*[Switch to tab 4 — the live CloudWatch dashboard. Leave it up ~8 seconds.]*
 
 > "And **CloudWatch**, defined in the same template as the app — request rate,
 > p99 latency, Lambda errors, DynamoDB capacity. Three alarms, currently green."
 
 > "The whole stack is one **AWS SAM** template. One command rebuilds every
 > resource you've just seen."
-
-*If the screenshot never arrives:* stay on the diagram and point at the
-CloudWatch box while you say the line above. It lists the alarms, so the claim
-still holds — you just won't be showing the proof.
 
 **On AI, be exact:**
 
