@@ -61,7 +61,7 @@
   <text x="1156" y="340" font-size="15" fill="#9FD3C7" text-anchor="middle">arm64 · 512 MB</text>
 
   <!-- ══ data + ops ══ -->
-  <text x="80" y="452" font-size="17" font-weight="700" fill="#0F6B57" letter-spacing="1.6">DATA AND OPERATIONS</text>
+  <text x="80" y="404" font-size="17" font-weight="700" fill="#0F6B57" letter-spacing="1.6">DATA AND OPERATIONS</text>
 
   <!-- dynamodb -->
   <g filter="url(#card)">
@@ -100,10 +100,10 @@
   <text x="1180" y="590" font-size="15" font-weight="600" fill="#0F6B57" text-anchor="middle">no wildcard grants</text>
 
   <!-- lambda -> the four -->
-  <path d="M 1100 358 L 1100 420 L 230 420 L 230 478" fill="none" stroke="#5A6B62" stroke-width="2.5" marker-end="url(#arrow)"/>
-  <path d="M 1130 358 L 1130 432 L 560 432 L 560 478" fill="none" stroke="#5A6B62" stroke-width="2.5" marker-end="url(#arrow)"/>
-  <path d="M 1170 358 L 1170 444 L 890 444 L 890 478" fill="none" stroke="#5A6B62" stroke-width="2.5" marker-end="url(#arrow)"/>
-  <path d="M 1210 358 L 1210 456 L 1180 456 L 1180 478" fill="none" stroke="#5A6B62" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <path d="M 1100 358 L 1100 428 L 230 428 L 230 478" fill="none" stroke="#5A6B62" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <path d="M 1130 358 L 1130 438 L 560 438 L 560 478" fill="none" stroke="#5A6B62" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <path d="M 1170 358 L 1170 448 L 890 448 L 890 478" fill="none" stroke="#5A6B62" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <path d="M 1210 358 L 1210 458 L 1180 458 L 1180 478" fill="none" stroke="#5A6B62" stroke-width="2.5" marker-end="url(#arrow)"/>
 
   <!-- ══ built, not in the live path ══ -->
   <text x="80" y="700" font-size="17" font-weight="700" fill="#8A968F" letter-spacing="1.6">INTEGRATED AND TESTED — NOT IN THE LIVE PATH</text>
@@ -134,7 +134,7 @@
 
   <!-- footer -->
   <text x="80" y="872" font-size="17" fill="#5A6B62">
-    All infrastructure as code — one AWS SAM template. 108 automated tests.
+    All infrastructure as code — one AWS SAM template. 121 automated tests.
   </text>
   <text x="1520" y="872" font-size="17" font-weight="600" fill="#0F6B57" text-anchor="end">AI recommends. Humans decide.</text>
 </svg>
