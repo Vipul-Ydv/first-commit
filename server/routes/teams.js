@@ -67,7 +67,7 @@ module.exports = function teamRoutes({ store }) {
     };
 
     await store.teams.put(team);
-    res.status(201).json(await hydrateTeam(store, team));
+    res.status(201).json(await hydrateTeam(store, team, req.auth.userId));
   }));
 
   /* ------------------------------ browse ------------------------------ */
@@ -81,7 +81,7 @@ module.exports = function teamRoutes({ store }) {
 
   router.get('/:id', requireAuth, route(async (req, res) => {
     const team = await mustLoadTeam(store, req.params.id, req.auth.userId);
-    res.json(await hydrateTeam(store, team));
+    res.json(await hydrateTeam(store, team, req.auth.userId));
   }));
 
   /* ------------------------ update (leader only) ----------------------- */
@@ -101,7 +101,7 @@ module.exports = function teamRoutes({ store }) {
     }
 
     const updated = await store.teams.update(team.teamId, patch);
-    res.json(await hydrateTeam(store, updated));
+    res.json(await hydrateTeam(store, updated, req.auth.userId));
   }));
 
   /* --------------------- recommendations (leader) ---------------------- */
@@ -185,7 +185,7 @@ module.exports.userRoutes = function userRoutes({ store }) {
 
     res.json({
       userId,
-      currentTeam: myTeam ? await hydrateTeam(store, myTeam) : null,
+      currentTeam: myTeam ? await hydrateTeam(store, myTeam, userId) : null,
       sentJoinRequests: await Promise.all(sent.map(withTeam)),
       receivedInvitations: await Promise.all(received.map(withTeam)),
     });

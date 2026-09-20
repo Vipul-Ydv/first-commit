@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import * as api from '../api';
 import toast from 'react-hot-toast';
-import { HiArrowLeft, HiUsers, HiLightningBolt, HiCheckCircle, HiClock, HiLink, HiUserGroup, HiDocumentText } from 'react-icons/hi';
+import { HiArrowLeft, HiUsers, HiLightningBolt, HiCheckCircle, HiClock, HiLink, HiUserGroup, HiDocumentText, HiMail } from 'react-icons/hi';
 import { Spinner } from './Login';
 import usePendingInvites from '../hooks/usePendingInvites';
 import InviteResponse from '../components/InviteResponse';
@@ -294,6 +294,53 @@ function CandidateCard({ candidate, teamId, onRefresh }) {
 }
 
 /* ─────────────────────────────────────────────
+   Member contact details
+───────────────────────────────────────────── */
+
+/**
+ * How you actually reach a teammate.
+ *
+ * Rendered only for people on the team. Matching two people and then leaving
+ * them no way to make contact is where a team finder quietly fails - but the
+ * details are not for browsers either, so they appear once both sides have
+ * agreed. Email arrives only when the API chooses to send it; everything here
+ * renders from whatever fields are present.
+ */
+function MemberContact({ member, isSelf }) {
+  const links = [
+    member.email    && { k: 'email',     href: `mailto:${member.email}`, label: member.email, Icon: HiMail, external: false },
+    member.github   && { k: 'github',    href: member.github,    label: 'GitHub',    Icon: HiLink, external: true },
+    member.linkedin && { k: 'linkedin',  href: member.linkedin,  label: 'LinkedIn',  Icon: HiLink, external: true },
+    member.portfolio&& { k: 'portfolio', href: member.portfolio, label: 'Portfolio', Icon: HiLink, external: true },
+  ].filter(Boolean);
+
+  if (links.length === 0) {
+    return (
+      <p className="text-xs text-gray-400 mt-1.5">
+        {isSelf
+          ? <>No contact links yet — <Link to="/profile" className="text-primary-600 hover:underline">add them to your profile</Link>.</>
+          : 'No contact links shared.'}
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+      {links.map(({ k, href, label, Icon, external }) => (
+        <a
+          key={k}
+          href={href}
+          {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+          className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 hover:underline break-all"
+        >
+          <Icon className="h-3 w-3 flex-shrink-0" />{label}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
    TeamDetail page
 ───────────────────────────────────────────── */
 
@@ -452,6 +499,11 @@ export default function TeamDetail() {
             <div className="card">
               <h2 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <HiUserGroup className="h-4 w-4 text-primary-600" /> Members
+                {isMember && (
+                  <span className="ml-auto text-xs font-normal text-gray-400">
+                    Contact details visible to teammates
+                  </span>
+                )}
               </h2>
 
               {team.members?.length > 0 ? (
@@ -478,6 +530,12 @@ export default function TeamDetail() {
                                 <span key={s} className="badge badge-skills text-xs">{s}</span>
                               ))}
                             </div>
+                          )}
+                          {isMember && (
+                            <MemberContact
+                              member={member}
+                              isSelf={member.userId === user?.userId}
+                            />
                           )}
                         </div>
                       </div>

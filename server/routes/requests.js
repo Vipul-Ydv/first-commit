@@ -155,7 +155,7 @@ function joinRequestRoutes({ store }) {
     res.json({
       requestId: request.requestId,
       status: outcome,
-      team: await hydrateTeam(store, await store.teams.get(team.teamId)),
+      team: await hydrateTeam(store, await store.teams.get(team.teamId), req.auth.userId),
     });
   });
 
@@ -193,7 +193,7 @@ function invitationRoutes({ store }) {
     res.json({
       invitationId: invitation.invitationId,
       status: outcome,
-      team: await hydrateTeam(store, await store.teams.get(team.teamId)),
+      team: await hydrateTeam(store, await store.teams.get(team.teamId), req.auth.userId),
     });
   });
 
