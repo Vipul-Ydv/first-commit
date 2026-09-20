@@ -223,6 +223,20 @@ function check(name, fn) {
     assert.strictEqual(r.body.receivedInvitations[0].status, 'accepted');
   });
 
+  /* ----------------------- contact details ---------------------------- */
+
+  r = await call('GET', '/teams/team_123', { as: AISHA });
+  check("teammates can see each other's email", () => {
+    const leader = r.body.members.find((m) => m.userId === LEADER);
+    assert.strictEqual(leader.email, 'vipul@btkit.ac.in');
+  });
+
+  r = await call('GET', '/teams/team_123', { as: 'user_459' });
+  check('a non-member sees the roster but no emails', () => {
+    assert.ok(r.body.members.length >= 3);
+    assert.ok(r.body.members.every((m) => !('email' in m)));
+  });
+
   /* --------------------------- extraction ----------------------------- */
 
   r = await call('POST', '/competitions/analyze', {
