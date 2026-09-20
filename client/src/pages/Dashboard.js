@@ -8,6 +8,7 @@ import {
   HiClock, HiArrowRight, HiUserGroup,
 } from 'react-icons/hi';
 import { Spinner } from './Login';
+import ContactLinks from '../components/ContactLinks';
 
 /* ─────────────────────────────────────────────
    Helpers
@@ -289,6 +290,10 @@ export default function Dashboard() {
                               {matched.length > 0 && (
                                 <p className="text-xs text-green-700 mt-1">Fills: {matched.join(', ')}</p>
                               )}
+                              {/* They asked to join, so they have already
+                                  reached out - you can answer before you
+                                  decide, instead of only after. */}
+                              <ContactLinks person={req} />
                               <p className="text-xs text-gray-400 mt-1">{fmt(req.createdAt)}</p>
                             </div>
                             <div className="flex gap-2 flex-shrink-0">
@@ -336,9 +341,10 @@ export default function Dashboard() {
                         key={inv.invitationId}
                         className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2.5"
                       >
-                        <div>
+                        <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-900">{inv.name}</p>
-                          <p className="text-xs text-gray-400">{fmt(inv.createdAt)}</p>
+                          <ContactLinks person={inv} className="mt-1" />
+                          <p className="text-xs text-gray-400 mt-1">{fmt(inv.createdAt)}</p>
                         </div>
                         <StatusBadge status={inv.status} />
                       </div>

@@ -39,12 +39,38 @@ async function loadMembers(store, team) {
 }
 
 /**
+ * May this viewer see how to contact the people on this team?
+ *
+ * Membership is the obvious case. The other two matter just as much: reaching
+ * out is itself a disclosure, so once an invitation or a join request exists
+ * between the two sides, each can see how to reach the other. Being asked to
+ * join a team and having no way to ask the leader a question about it is how
+ * an invitation goes unanswered.
+ *
+ * A stranger browsing an open team has done none of that, and sees the roster
+ * without contact details.
+ */
+async function canContactTeam(store, team, viewerId) {
+  if (viewerId == null) return false;
+  if ((team.memberIds || []).includes(viewerId)) return true;
+
+  const invited = await store.invitations.findOne(
+    (i) => i.teamId === team.teamId && i.userId === viewerId && i.status === 'pending'
+  );
+  if (invited) return true;
+
+  const requested = await store.joinRequests.findOne(
+    (r) => r.teamId === team.teamId && r.userId === viewerId && r.status === 'pending'
+  );
+  return Boolean(requested);
+}
+
+/**
  * Full team view: competition, members, gap, computed status.
  *
- * `viewerId` decides whether contact details come back. Matching two people
- * and then leaving them no way to reach each other is where a team finder
- * quietly fails - but a stranger browsing an open team has agreed to nothing,
- * so the email only travels between people already on the same roster.
+ * `viewerId` decides whether contact details come back - see canContactTeam.
+ * The answer ships as `viewerCanContact` so the client renders the server's
+ * decision instead of re-deriving it and drifting out of step.
  */
 async function hydrateTeam(store, team, viewerId = null) {
   if (!team) return null;
@@ -52,7 +78,7 @@ async function hydrateTeam(store, team, viewerId = null) {
   const members = await loadMembers(store, team);
   const competition = team.competitionId ? await store.competitions.get(team.competitionId) : null;
   const skillGap = computeGap(team.requiredSkills, members);
-  const isTeammate = viewerId != null && (team.memberIds || []).includes(viewerId);
+  const isTeammate = await canContactTeam(store, team, viewerId);
 
   return {
     teamId: team.teamId,
@@ -68,6 +94,7 @@ async function hydrateTeam(store, team, viewerId = null) {
       isLeader: m.userId === team.leaderId,
     })),
     skillGap,
+    viewerCanContact: isTeammate,
   };
 }
 
@@ -105,6 +132,7 @@ async function competitionsById(store) {
 
 module.exports = {
   publicUser,
+  canContactTeam,
   loadMembers,
   hydrateTeam,
   summariseTeam,

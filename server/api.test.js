@@ -234,6 +234,23 @@ function check(name, fn) {
   r = await call('GET', '/teams/team_123', { as: 'user_459' });
   check('a non-member sees the roster but no emails', () => {
     assert.ok(r.body.members.length >= 3);
+    assert.strictEqual(r.body.viewerCanContact, false);
+    assert.ok(r.body.members.every((m) => !('email' in m)));
+  });
+
+  // Sneha is on no team, so nothing but the invitation itself can explain a
+  // change here. Being asked to join and having no way to reach the leader is
+  // how an invitation goes unanswered.
+  await call('POST', '/teams/team_124/invite', { as: 'user_461', body: { userId: 'user_459' } });
+  r = await call('GET', '/teams/team_124', { as: 'user_459' });
+  check('an invited non-member can see how to reach the team', () => {
+    assert.strictEqual(r.body.viewerCanContact, true);
+    assert.ok(r.body.members.every((m) => 'email' in m));
+  });
+
+  r = await call('GET', '/teams/team_124', { as: 'user_458' });
+  check('an uninvited outsider still cannot', () => {
+    assert.strictEqual(r.body.viewerCanContact, false);
     assert.ok(r.body.members.every((m) => !('email' in m)));
   });
 
