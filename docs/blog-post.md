@@ -219,9 +219,10 @@ hours of optionality to an assumption I never spent thirty seconds checking.
 
 ## Where it ended up
 
-Live on Amplify, API Gateway, Lambda, DynamoDB, Cognito, IAM, S3 and CloudWatch.
-121 tests. Both directions of the matching loop working end to end against the
-deployed API.
+Live on Amplify, API Gateway, Lambda, DynamoDB, S3, CloudWatch, IAM and
+CloudFormation. Cognito is deployed and its tokens verify, but it is not in
+the auth path yet, so I am not counting it. 121 tests. Both directions of the
+matching loop working end to end against the deployed API.
 
 And an AI feature shipped without the AI — which, given the weekend, I'm
 counting as the thing I'm proudest of.
