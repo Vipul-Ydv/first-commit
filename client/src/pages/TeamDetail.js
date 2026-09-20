@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import * as api from '../api';
 import toast from 'react-hot-toast';
-import { HiArrowLeft, HiUsers, HiLightningBolt, HiCheckCircle, HiClock, HiLink, HiUserGroup, HiDocumentText } from 'react-icons/hi';
+import { HiArrowLeft, HiUsers, HiLightningBolt, HiCheckCircle, HiClock, HiLink, HiUserGroup, HiDocumentText, HiAcademicCap } from 'react-icons/hi';
 import { Spinner } from './Login';
 import usePendingInvites from '../hooks/usePendingInvites';
 import InviteResponse from '../components/InviteResponse';
@@ -398,8 +398,15 @@ export default function TeamDetail() {
               ) : (
                 <p className="text-xs text-gray-400">No competition attached</p>
               )}
-              <p className="text-xs text-gray-400 mt-1">
-                {team.members?.length ?? 0} / {team.maxMembers} members
+              <p className="text-xs text-gray-400 mt-1 flex items-center gap-2 flex-wrap">
+                <span>{team.members?.length ?? 0} / {team.maxMembers} members</span>
+                {/* Null when the roster spans more than one institution - a
+                    mixed team has no campus, so nothing is claimed. */}
+                {team.collegeName && (
+                  <span className="flex items-center gap-1 text-gray-500">
+                    <HiAcademicCap className="h-3.5 w-3.5" />{team.collegeName}
+                  </span>
+                )}
               </p>
             </div>
 

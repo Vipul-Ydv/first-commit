@@ -14,6 +14,27 @@ const { intersect, subtract, canonical } = require('./skills');
 const { computeGap, skillNames, weightOf, hasOpenSlot } = require('./gap');
 const { isEligible } = require('./eligibility');
 
+/**
+ * The institution a team belongs to, when it belongs to one.
+ *
+ * Teams do not store a college; it is a fact about who joined. If everyone is
+ * from the same place, that is the team's institution. A mixed team gets
+ * null, which is more honest than taking the leader's and implying a
+ * uniformity that is not there - and it matters, because the whole point of
+ * showing this is so someone can tell whether a team is from their campus.
+ */
+function teamInstitution(members = []) {
+  const names = members.map((m) => m.collegeName || m.organizationName).filter(Boolean);
+  if (names.length === 0) return null;
+  return names.every((n) => n === names[0]) ? names[0] : null;
+}
+
+/** Same campus? Compared case-insensitively; people type their college by hand. */
+function sameInstitution(a, b) {
+  if (!a || !b) return false;
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 /* ------------------------------------------------------------------ *
  * Direction A: Team -> Individual  (leader sees suggested candidates)
  * ------------------------------------------------------------------ */
@@ -27,6 +48,7 @@ function rankCandidates({ team, members = [], candidates = [], competition }) {
   const required = skillNames(team.requiredSkills);
   const gap = computeGap(team.requiredSkills, members);
   const memberIds = new Set(members.map((m) => m.userId));
+  const teamCollege = teamInstitution(members);
 
   const scored = candidates
     // --- deterministic gate, before any scoring ---
@@ -42,11 +64,17 @@ function rankCandidates({ team, members = [], candidates = [], competition }) {
 
       // Primary: weighted value of the gap holes this person closes.
       const gapScore = fills.reduce((sum, s) => sum + weightOf(team.requiredSkills, s), 0);
+      const sameCollege = sameInstitution(
+        teamCollege,
+        candidate.collegeName || candidate.organizationName
+      );
 
       return {
         userId: candidate.userId,
         name: candidate.name,
         collegeName: candidate.collegeName,
+        organizationName: candidate.organizationName || null,
+        sameInstitution: sameCollege,
         skills: candidate.skills || [],
         matchedSkills: matched,
         missingSkillsFilled: fills,
@@ -59,8 +87,9 @@ function rankCandidates({ team, members = [], candidates = [], competition }) {
         _score: [
           gapScore,                              // 1. closes the most valuable holes
           prefersThis ? 1 : 0,                   // 2. wants this competition
-          matched.length,                        // 3. overall overlap
-          availabilityRank(candidate.availability), // 4. secondary signals (spec A.7)
+          sameCollege ? 1 : 0,                   // 3. same campus - easier to meet
+          matched.length,                        // 4. overall overlap
+          availabilityRank(candidate.availability), // 5. secondary signals (spec A.7)
           candidate.rolePreference?.length ? 1 : 0,
         ],
       };
@@ -86,6 +115,8 @@ function rankCandidates({ team, members = [], candidates = [], competition }) {
  * the whole requirement is what tells them whether they belong there.
  */
 function rankTeams({ user, teams = [], competitionsById = {} }) {
+  const userCollege = user.collegeName || user.organizationName;
+
   const scored = teams
     // --- deterministic gate ---
     .filter((t) => hasOpenSlot(t))
@@ -99,10 +130,14 @@ function rankTeams({ user, teams = [], competitionsById = {} }) {
         user.competitionPreferences.some((id) => id === team.competitionId);
 
       const weighted = matched.reduce((sum, s) => sum + weightOf(team.requiredSkills, s), 0);
+      const teamCollege = teamInstitution(team.members);
+      const sameCollege = sameInstitution(teamCollege, userCollege);
 
       return {
         teamId: team.teamId,
         name: team.name,
+        collegeName: teamCollege,
+        sameInstitution: sameCollege,
         competitionName: competitionsById[team.competitionId]?.name,
         deadline: competitionsById[team.competitionId]?.deadline,
         memberCount: (team.members || []).length,
@@ -117,6 +152,7 @@ function rankTeams({ user, teams = [], competitionsById = {} }) {
         _score: [
           weighted,
           prefersThis ? 1 : 0,
+          sameCollege ? 1 : 0,
           required.length ? matched.length / required.length : 0,
         ],
       };
@@ -191,4 +227,5 @@ function stripScore({ _score, ...rest }) {
   return rest;
 }
 
-module.exports = { rankCandidates, rankTeams, explainCandidate, explainTeam };
+module.exports = {
+  teamInstitution, sameInstitution, rankCandidates, rankTeams, explainCandidate, explainTeam };
