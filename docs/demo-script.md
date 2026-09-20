@@ -11,8 +11,8 @@ someone. That now lands in the first fifteen seconds instead of at 1:00.
 ```
 0:00 – 0:15   The person who isn't on the list
 0:15 – 0:30   Why that is the right answer
-0:30 – 0:52   Reading the brief
-0:52 – 1:30   The gap closes
+0:30 – 0:55   Where those rules came from
+0:55 – 1:30   The gap closes
 1:30 – 1:45   The second person who isn't on the list
 1:45 – 2:25   Architecture and AWS
 2:25 – 2:42   Learning
@@ -96,24 +96,39 @@ immediately — no title card, no "hi, I'm".]*
 
 ---
 
-# 0:30 – 0:52 · Reading the brief
+# 0:30 – 0:55 · Where those rules came from
 
-*[Tab 2 — the PDF, two seconds, so they see it is a real document. Then tab 1:
-Create Team → upload it.]*
+*[Stay on the team page a moment. Point at "AI Innovation Challenge" and the
+2/4 members line.]*
 
-> "Every hackathon sends a PDF like this one. Rather than retyping it, upload
-> the file — we pull out six fields. Name, organiser, deadline, team size,
-> eligibility."
+> "Everything you just watched runs on rules. Teams of two to four. BTKIT
+> students only. I didn't type any of that — it's in the competition brief."
+
+*[Tab 2 — the PDF. Leave it up two or three seconds so they see it is a real
+document, not a mock.]*
+
+> "And the brief is this. A PDF an organiser emailed out. Somebody has to get
+> the deadline, the team size and the eligibility rules out of it and into a
+> form, correctly, or every match after that is built on the wrong
+> constraints."
+
+> "That's the boring step people skip — and it's the one the AI is for."
+
+*[Tab 1: Create Team → upload the same PDF.]*
+
+> "Upload the file and we pull out six fields. Name, organiser, deadline,
+> minimum and maximum team size, eligibility."
 
 *[The review screen appears. **Do not submit it.**]*
 
-> "And it stops here. A human confirms every field before anything is saved,
-> and anything we couldn't read confidently is left blank rather than guessed.
-> I'm not going to confirm this one — I already have a team."
+> "Then it stops. A human confirms every field before anything is saved, and
+> anything we couldn't read confidently is left blank rather than guessed —
+> because a wrong deadline is worse than a missing one. I won't confirm this
+> one; I already have a team."
 
 ---
 
-# 0:52 – 1:30 · The gap closes
+# 0:55 – 1:30 · The gap closes
 
 *[Back to VisionX. Invite Aisha.]*
 
@@ -143,10 +158,13 @@ video, and narrating over it is the easiest way to waste it.
 > design. On paper he's the strongest match in the database — he'd close both
 > gaps at once."
 
-> "This competition is BTKIT-only and he's at a different college. Eligibility
-> is a hard filter that runs before anything is scored, so he's never ranked,
-> never shown, and never explained away. That's deliberate. Who gets into a
-> team should be reproducible, not a call a model makes."
+> "He's at a different college, and this competition is BTKIT-only — that's
+> the eligibility line out of the PDF, doing work. It's a hard filter that
+> runs before anything is scored, so he's never ranked, never shown, and never
+> explained away."
+
+> "That's deliberate. Who gets into a team should be reproducible, not a call
+> a model makes."
 
 ---
 
@@ -225,6 +243,7 @@ video, and narrating over it is the easiest way to waste it.
 | Opened logged out on the landing page | Opens on the candidate list, mid-product |
 | Anecdote first, product at 0:20 | Product at 0:00, anecdote at 0:22 as *evidence* |
 | One absence (Rohit), at 1:00 | Two absences, at 0:05 and 1:30 — they bracket the demo |
+| Upload beat opened on the file | Opens on the rules the file produced, then shows the file |
 | Upload created a real team | Stops at the review screen: proves human review *and* leaves the data clean |
 | Closed on a stat list | Closes by returning to the opening image |
 
