@@ -46,6 +46,24 @@ function matchedSkills(candidateSkills = [], requiredSkills = []) {
   return candidateSkills.filter((s) => req.includes(s.toLowerCase()));
 }
 
+/**
+ * A team name that opens the team page.
+ *
+ * Invitation and join-request rows name a team but gave you no way to look at
+ * it, so you had to accept or decline on the strength of the name alone. The
+ * plain-text fallback matters: a row whose team has since been deleted still
+ * has a name but no teamId to link to.
+ */
+function TeamLink({ teamId, name, className = 'text-sm font-semibold text-gray-900' }) {
+  if (!name) return null;
+  if (!teamId) return <p className={className}>{name}</p>;
+  return (
+    <Link to={`/teams/${teamId}`} className={`block ${className} hover:text-primary-600 hover:underline transition-colors`}>
+      {name}
+    </Link>
+  );
+}
+
 /* ─────────────────────────────────────────────
    Skill Gap bar (compact, for dashboard)
 ───────────────────────────────────────────── */
@@ -182,7 +200,11 @@ export default function Dashboard() {
             {indiv?.currentTeam ? (
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                  <p className="font-semibold text-gray-900">{indiv.currentTeam.name}</p>
+                  <TeamLink
+                    teamId={indiv.currentTeam.teamId}
+                    name={indiv.currentTeam.name}
+                    className="font-semibold text-gray-900"
+                  />
                   {indiv.currentTeam.competition?.name && (
                     <p className="text-xs text-gray-500 mt-0.5">{indiv.currentTeam.competition.name}</p>
                   )}
@@ -349,7 +371,7 @@ export default function Dashboard() {
                       <div key={inv.invitationId} className="border border-gray-100 rounded-lg p-3">
                         <div className="flex items-start justify-between gap-3 flex-wrap">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900">{inv.teamName}</p>
+                            <TeamLink teamId={inv.teamId} name={inv.teamName} />
                             {inv.competitionName && (
                               <p className="text-xs text-gray-500 mt-0.5">{inv.competitionName}</p>
                             )}
@@ -408,7 +430,7 @@ export default function Dashboard() {
                         className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2.5 flex-wrap gap-2"
                       >
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{req.teamName}</p>
+                          <TeamLink teamId={req.teamId} name={req.teamName} className="text-sm font-medium text-gray-900" />
                           {req.competitionName && (
                             <p className="text-xs text-gray-500">{req.competitionName}</p>
                           )}

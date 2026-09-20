@@ -5,6 +5,8 @@ import * as api from '../api';
 import toast from 'react-hot-toast';
 import { HiArrowLeft, HiUsers, HiLightningBolt, HiCheckCircle, HiClock, HiLink, HiUserGroup, HiDocumentText } from 'react-icons/hi';
 import { Spinner } from './Login';
+import usePendingInvites from '../hooks/usePendingInvites';
+import InviteResponse from '../components/InviteResponse';
 
 /* ─────────────────────────────────────────────
    Shared helpers
@@ -111,7 +113,7 @@ const JOIN_CLS = {
   NOT_ELIGIBLE:     'badge bg-yellow-50 text-yellow-700 border border-yellow-200',
 };
 
-function JoinSection({ teamId, canRequest, isMember, onRefresh }) {
+function JoinSection({ teamId, canRequest, isMember, invitation, onInviteDone, onRefresh }) {
   const [state, setState] = useState('idle');
 
   const handle = async () => {
@@ -133,6 +135,16 @@ function JoinSection({ teamId, canRequest, isMember, onRefresh }) {
       <span className="inline-flex items-center gap-1.5 text-sm text-green-700 font-medium">
         <HiCheckCircle className="h-4 w-4" /> Member
       </span>
+    );
+  }
+  // An outstanding invitation outranks the join button: this team has already
+  // asked you, so the only sensible controls are accept and decline.
+  if (invitation) {
+    return (
+      <div className="text-right">
+        <p className="text-xs text-primary-700 font-medium mb-1.5">This team invited you</p>
+        <InviteResponse invitation={invitation} onDone={onInviteDone} size="lg" />
+      </div>
     );
   }
   if (!canRequest) return null;
@@ -294,6 +306,7 @@ export default function TeamDetail() {
   const [loadingTeam, setLoading] = useState(true);
   const [recData, setRecData]     = useState(null);
   const [loadingRec, setLoadingRec] = useState(false);
+  const { byTeam: invitedBy, reload: reloadInvites } = usePendingInvites();
 
   /* ── Load team ── */
   const loadTeam = useCallback(async () => {
@@ -324,6 +337,12 @@ export default function TeamDetail() {
   }, [team, id, user]); // eslint-disable-line
 
   const refresh = useCallback(() => loadTeam(), [loadTeam]);
+
+  // Accepting adds you to the roster and closes part of the gap, so the team
+  // itself has to be re-read, not just the invitation list.
+  const handleInviteDone = useCallback(async () => {
+    await Promise.all([reloadInvites(), loadTeam()]);
+  }, [reloadInvites, loadTeam]);
 
   /* ── Loading ── */
   if (loadingTeam) {
@@ -388,6 +407,8 @@ export default function TeamDetail() {
                 teamId={team.teamId}
                 canRequest={canRequest}
                 isMember={isMember}
+                invitation={invitedBy[team.teamId]}
+                onInviteDone={handleInviteDone}
                 onRefresh={refresh}
               />
             </div>

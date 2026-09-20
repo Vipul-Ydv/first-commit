@@ -7,6 +7,8 @@ import {
   HiUsers, HiPlus, HiLightningBolt, HiUserGroup,
   HiClock, HiCheckCircle, HiArrowRight,
 } from 'react-icons/hi';
+import usePendingInvites from '../hooks/usePendingInvites';
+import InviteResponse from '../components/InviteResponse';
 
 /* ─────────────────────────────────────────────
    Constants
@@ -46,7 +48,9 @@ function stillNeeded(required = [], matched = []) {
    Join button — tracks per-team state
 ───────────────────────────────────────────── */
 
-function JoinButton({ teamId, state, onRequest }) {
+function JoinButton({ teamId, state, onRequest, invitation, onInviteDone }) {
+  // This team already invited you - respond to that instead of asking again.
+  if (invitation) return <InviteResponse invitation={invitation} onDone={onInviteDone} />;
   if (state === 'sent') {
     return (
       <span className="badge bg-green-50 text-green-700 border border-green-200 flex items-center gap-1">
@@ -76,7 +80,7 @@ function JoinButton({ teamId, state, onRequest }) {
    Recommended card
 ───────────────────────────────────────────── */
 
-function RecommendedCard({ rec, reqState, onRequest }) {
+function RecommendedCard({ rec, reqState, onRequest, invitation, onInviteDone }) {
   const needed   = stillNeeded(rec.requiredSkills, rec.matchedSkills);
   const deadline = fmt(rec.deadline);
 
@@ -95,7 +99,14 @@ function RecommendedCard({ rec, reqState, onRequest }) {
             <p className="text-xs text-gray-500 mt-0.5 truncate">{rec.competitionName}</p>
           )}
         </div>
-        {rec.status && <StatusBadge status={rec.status} />}
+        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          {rec.status && <StatusBadge status={rec.status} />}
+          {invitation && (
+            <span className="badge bg-primary-50 text-primary-700 border border-primary-100 text-xs">
+              Invited you
+            </span>
+          )}
+        </div>
       </div>
 
       {/* AI reason */}
@@ -143,7 +154,7 @@ function RecommendedCard({ rec, reqState, onRequest }) {
             </span>
           )}
         </div>
-        <JoinButton teamId={rec.teamId} state={reqState} onRequest={onRequest} />
+        <JoinButton teamId={rec.teamId} state={reqState} onRequest={onRequest} invitation={invitation} onInviteDone={onInviteDone} />
       </div>
     </div>
   );
@@ -153,7 +164,7 @@ function RecommendedCard({ rec, reqState, onRequest }) {
    Browse card
 ───────────────────────────────────────────── */
 
-function BrowseCard({ team, reqState, onRequest }) {
+function BrowseCard({ team, reqState, onRequest, invitation, onInviteDone }) {
   const deadline = fmt(team.deadline);
 
   return (
@@ -171,7 +182,14 @@ function BrowseCard({ team, reqState, onRequest }) {
             <p className="text-xs text-gray-500 mt-0.5 truncate">{team.competitionName}</p>
           )}
         </div>
-        <StatusBadge status={team.status} />
+        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          <StatusBadge status={team.status} />
+          {invitation && (
+            <span className="badge bg-primary-50 text-primary-700 border border-primary-100 text-xs">
+              Invited you
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Required skills */}
@@ -218,7 +236,7 @@ function BrowseCard({ team, reqState, onRequest }) {
             </span>
           )}
         </div>
-        <JoinButton teamId={team.teamId} state={reqState} onRequest={onRequest} />
+        <JoinButton teamId={team.teamId} state={reqState} onRequest={onRequest} invitation={invitation} onInviteDone={onInviteDone} />
       </div>
     </div>
   );
@@ -235,6 +253,7 @@ export default function Teams() {
   const [browseTeams, setBrowseTeams]         = useState([]);
   const [loading, setLoading]                 = useState(true);
   const [requestedTeams, setRequestedTeams]   = useState({});
+  const { byTeam: invitedBy, reload: reloadInvites } = usePendingInvites();
 
   /* ── Load ── */
   const load = useCallback(async () => {
@@ -254,6 +273,12 @@ export default function Teams() {
   }, [user.userId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Accepting puts you on a team, which changes both lists and every other
+  // team's recommendation - reload the page data, not just the invitations.
+  const handleInviteDone = useCallback(async () => {
+    await Promise.all([reloadInvites(), load()]);
+  }, [reloadInvites, load]);
 
   /* ── Request ── */
   const handleRequest = useCallback(async (teamId) => {
@@ -318,6 +343,8 @@ export default function Teams() {
                   rec={rec}
                   reqState={requestedTeams[rec.teamId] || 'idle'}
                   onRequest={handleRequest}
+                  invitation={invitedBy[rec.teamId]}
+                  onInviteDone={handleInviteDone}
                 />
               ))}
             </div>
@@ -357,6 +384,8 @@ export default function Teams() {
                   team={team}
                   reqState={requestedTeams[team.teamId] || 'idle'}
                   onRequest={handleRequest}
+                  invitation={invitedBy[team.teamId]}
+                  onInviteDone={handleInviteDone}
                 />
               ))}
             </div>
