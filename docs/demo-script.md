@@ -67,7 +67,20 @@ rohit@other.ac.in   never log in    the strong candidate eligibility hides
 # 0:00 – 0:15 · Open on the absence
 
 *[Tab 1, already showing VisionX's candidate list. Five names. Start talking
-immediately — no title card, no "hi, I'm".]*
+immediately.]*
+
+**Introduce yourselves on screen, not out loud.** A small caption in the
+bottom-left for the first five seconds:
+
+```
+HackMatch — Vipul Yadav & Vidushi · Ship It
+```
+
+Judges do need to know who built this, and the submission form already records
+who did what. Spending the opening seconds saying it out loud is the most
+expensive way to deliver it — a caption costs nothing and is readable while
+you are already making your strongest point. If your editor cannot do
+captions, say the names at the close instead; it is written in below.
 
 > "There's a student at this college called Imran. AWS, Docker, CI/CD — three
 > strong skills, eligible for this competition, actively looking for a team."
@@ -232,7 +245,11 @@ video, and narrating over it is the easiest way to waste it.
 > "Eight AWS services in production, both directions of matching working end to
 > end, 108 tests, and infrastructure you can rebuild from one template."
 
-> "AI recommends. Humans decide."
+> "I'm Vipul, I built the backend and the AWS infrastructure. Vidushi built the
+> frontend. HackMatch — AI recommends, humans decide."
+
+**If you used the opening caption, drop the names here** and just say "AI
+recommends. Humans decide." Saying it twice is worse than saying it once.
 
 ---
 
