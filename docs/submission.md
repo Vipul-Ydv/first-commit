@@ -152,7 +152,7 @@ Backend, AI integration and AWS infrastructure.
   was built and tested before any AWS account existed
 - All AWS infrastructure as SAM: Lambda, API Gateway, DynamoDB, S3, Cognito,
   IAM, CloudWatch dashboard and alarms
-- 108 automated tests, including end-to-end coverage of the full matching loop
+- 121 automated tests, including end-to-end coverage of the full matching loop
 - Product specification, API contract and project documentation
 ```
 

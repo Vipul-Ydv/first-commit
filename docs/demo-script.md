@@ -211,7 +211,7 @@ video. Talking over it is the easiest way to waste it.
 > has his skill, one because he isn't eligible. Getting those two refusals
 > right matters more than any amount of ranking cleverness."
 
-> "Eight AWS services in production, matching working in both directions, 108
+> "Eight AWS services in production, matching working in both directions, 121
 > tests, and infrastructure you can rebuild from one template."
 
 > "AI recommends. Humans decide."
