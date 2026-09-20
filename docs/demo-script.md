@@ -1,6 +1,7 @@
 # Demo Script — 3 minutes
 
-Balanced against what the submission form actually asks the video to cover:
+Written for Vidushi to record. Balanced against what the submission form asks
+the video to cover:
 **about the project · tech stack and architecture · how you used AWS · learning.**
 
 An earlier draft of this script was 137 seconds of product demo and 8 seconds of
@@ -17,19 +18,23 @@ segment.
 
 ---
 
-## What you need open
+## What you need
 
 ```
-Frontend   https://master.d2vspho7z11qj5.amplifyapp.com
-Dashboard  https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards/dashboard/HackMatch
-Diagram    docs/demo/architecture.svg          (open in a browser, full screen)
-Upload     docs/demo/AI-Innovation-Challenge-2026.pdf
+Frontend    https://master.d2vspho7z11qj5.amplifyapp.com
+Diagram     docs/demo/architecture.svg                  (browser, full screen)
+Upload file docs/demo/AI-Innovation-Challenge-2026.pdf
+Dashboard   a screenshot Vipul sends you — you cannot open the AWS console,
+            it is his account
 ```
 
 Demo logins: any seeded user, password `hackmatch2026`
 (`aisha@btkit.ac.in`, `neha@btkit.ac.in`)
 
-**Four tabs, in this order:** app · diagram · CloudWatch dashboard · (spare)
+Showing invite → accept needs **two accounts**. Use two windows, or one normal
+and one incognito, so you are not logging in and out mid-take.
+
+**Three tabs, in this order:** app · diagram · dashboard screenshot
 
 ---
 
@@ -37,9 +42,11 @@ Demo logins: any seeded user, password `hackmatch2026`
 
 - [ ] Log out of the app so you start on the landing page
 - [ ] **Silent run-through first.** Do not record the first attempt.
-- [ ] That run-through fills the dashboard — wait ~5 min, then set it to **1h**
+- [ ] Tell Vipul when the run-through is done — it puts data on the dashboard.
+      He waits ~5 min, screenshots it, and sends it. Open that image in tab 3.
 - [ ] Diagram open full screen in its own tab, zoomed to fit
-- [ ] the PDF on the desktop, one click away
+- [ ] The PDF on the desktop, one click away
+- [ ] Second browser window (or incognito) signed in as a different user
 - [ ] Close Slack, WhatsApp, email
 
 ---
@@ -125,13 +132,17 @@ Demo logins: any seeded user, password `hackmatch2026`
 > "**IAM** is least privilege — each table granted individually, S3 scoped to a
 > single prefix, no wildcards."
 
-*[Switch to the CloudWatch dashboard]*
+*[Switch to tab 3 — the dashboard screenshot. Leave it up for about 8 seconds.]*
 
 > "And **CloudWatch**, defined in the same template as the app — request rate,
 > p99 latency, Lambda errors, DynamoDB capacity. Three alarms, currently green."
 
 > "The whole stack is one **AWS SAM** template. One command rebuilds every
 > resource you've just seen."
+
+*If the screenshot never arrives:* stay on the diagram and point at the
+CloudWatch box while you say the line above. It lists the alarms, so the claim
+still holds — you just won't be showing the proof.
 
 **On AI, be exact:**
 
@@ -159,7 +170,7 @@ Demo logins: any seeded user, password `hackmatch2026`
 
 # 2:40 – 3:00 · Close
 
-*[Back to the app, or leave the dashboard up]*
+*[Back to the diagram, or to the app — whichever you are already on]*
 
 > "Eight AWS services in production, all on demand. Both directions of matching
 > working end to end, 108 tests, and infrastructure you can rebuild from one
