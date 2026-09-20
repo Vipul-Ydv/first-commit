@@ -294,5 +294,5 @@ https://builder.aws.com/content/3JbEyjYI7tTNj62Yrgu3LPSRNfR/the-ai-feature-we-sh
 ## YouTube video demo link
 
 ```
-https://youtu.be/JYJ0DjhNBjU
+https://youtu.be/KN2bI_vj28E
 ```
