@@ -274,7 +274,7 @@ having readable named policies made that easy to spot and fix.
 ## Blog links
 
 ```
-(paste your AWS Builder Center URL here once published — docs/blog-post.md)
+https://builder.aws.com/content/3JbEyjYI7tTNj62Yrgu3LPSRNfR/the-ai-feature-we-shipped-without-the-ai
 ```
 
 ## YouTube video demo link
