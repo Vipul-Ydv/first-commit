@@ -127,9 +127,31 @@ module.exports = function teamRoutes({ store }) {
     const invitations = await store.invitations.find((i) => i.teamId === team.teamId);
     const gap = computeGap(team.requiredSkills, members);
 
+    /**
+     * Contact details ride along in both directions.
+     *
+     * A leader deciding on a join request could see a name, a college and a
+     * list of skills, and had no way to ask the person a single question
+     * before accepting or rejecting them. Both rows here are people who have
+     * already reached out or been reached out to, which is the same boundary
+     * canContactTeam draws on the other side.
+     */
     const withUser = async (row, extra = {}) => {
       const u = await store.users.get(row.userId);
-      return { ...row, name: u?.name, collegeName: u?.collegeName, skills: u?.skills || [], ...extra };
+      return {
+        ...row,
+        name: u?.name,
+        collegeName: u?.collegeName,
+        organizationName: u?.organizationName || null,
+        skills: u?.skills || [],
+        availability: u?.availability || null,
+        rolePreference: u?.rolePreference || [],
+        email: u?.email || null,
+        github: u?.github || null,
+        linkedin: u?.linkedin || null,
+        portfolio: u?.portfolio || null,
+        ...extra,
+      };
     };
 
     res.json({
